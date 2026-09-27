@@ -16,7 +16,8 @@ class AppConfig {
   static String get tmdbApiKey =>
       activeTmdbApiKey.isNotEmpty ? activeTmdbApiKey : _defaultKey;
 
-  static const String tmdbBaseUrl = 'https://api.themoviedb.org/3';
+  static const String tmdbBaseUrl = 'https://api.tmdb.org/3';
+  static const String tmdbFallbackUrl = 'https://api.themoviedb.org/3';
   static const String imageOriginal = 'https://image.tmdb.org/t/p/original';
   static const String imageW500 = 'https://image.tmdb.org/t/p/w500';
   static const String imageW300 = 'https://image.tmdb.org/t/p/w300';

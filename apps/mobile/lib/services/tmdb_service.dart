@@ -8,14 +8,15 @@ class TmdbService {
 
   static Map<String, String> get _headers => {
         'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) CineStream/1.0',
       };
 
-  static Uri _buildUri(String path, [Map<String, String>? queryParams]) {
+  static Uri _buildUri(String baseUrl, String path, [Map<String, String>? queryParams]) {
     final params = <String, String>{
       'api_key': AppConfig.tmdbApiKey,
       ...?queryParams,
     };
-    return Uri.parse('${AppConfig.tmdbBaseUrl}$path').replace(queryParameters: params);
+    return Uri.parse('$baseUrl$path').replace(queryParameters: params);
   }
 
   static Future<Map<String, dynamic>> _get(String path, [Map<String, String>? queryParams]) async {
@@ -23,14 +24,29 @@ class TmdbService {
       throw Exception('TMDB API Key is not set. Please provide one in Settings or build with --dart-define=TMDB_API_KEY=...');
     }
 
-    final url = _buildUri(path, queryParams);
-    final response = await _client.get(url, headers: _headers);
+    final baseUrls = [
+      AppConfig.tmdbBaseUrl,
+      AppConfig.tmdbFallbackUrl,
+    ];
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
-    } else {
-      throw Exception('Failed to load data (HTTP ${response.statusCode}): ${response.body}');
+    Object? lastError;
+    for (final baseUrl in baseUrls) {
+      try {
+        final url = _buildUri(baseUrl, path, queryParams);
+        final response = await _client.get(url, headers: _headers).timeout(const Duration(seconds: 12));
+
+        if (response.statusCode == 200) {
+          return jsonDecode(response.body) as Map<String, dynamic>;
+        } else {
+          lastError = Exception('Failed to load data (HTTP ${response.statusCode}): ${response.body}');
+        }
+      } catch (err) {
+        lastError = err;
+        // Continue to fallback domain if first domain had SocketException/Connection reset
+      }
     }
+
+    throw lastError ?? Exception('Failed to connect to TMDB API across all endpoints.');
   }
 
   // Trending

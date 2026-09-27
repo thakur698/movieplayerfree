@@ -18,10 +18,12 @@ class TmdbApiClient {
       ...params
     });
 
-    const url = `${CONFIG.TMDB_BASE_URL}${endpoint}?${queryParams.toString()}`;
+    const baseUrls = [
+      CONFIG.TMDB_BASE_URL || 'https://api.tmdb.org/3',
+      CONFIG.TMDB_FALLBACK_URL || 'https://api.themoviedb.org/3'
+    ];
 
-    // Simple cache for GET requests for 2 minutes
-    const cacheKey = url;
+    const cacheKey = `${endpoint}?${queryParams.toString()}`;
     if (this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
       if (Date.now() - cached.timestamp < 120000) {
@@ -29,25 +31,32 @@ class TmdbApiClient {
       }
     }
 
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'Accept': 'application/json'
+    let lastError = null;
+    for (const baseUrl of baseUrls) {
+      const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`TMDB API Error [${response.status}]: ${errorText}`);
         }
-      });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`TMDB API Error [${response.status}]: ${errorText}`);
+        const data = await response.json();
+        this.cache.set(cacheKey, { timestamp: Date.now(), data });
+        return data;
+      } catch (error) {
+        lastError = error;
+        console.warn(`Request to ${baseUrl} failed, trying fallback:`, error.message);
       }
-
-      const data = await response.json();
-      this.cache.set(cacheKey, { timestamp: Date.now(), data });
-      return data;
-    } catch (error) {
-      console.error('Fetch error:', error);
-      throw error;
     }
+
+    console.error('All TMDB API endpoints failed:', lastError);
+    throw lastError;
   }
 
   // Trending
