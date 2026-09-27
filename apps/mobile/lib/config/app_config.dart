@@ -47,20 +47,28 @@ class StreamServer {
 
 final List<StreamServer> streamServers = [
   StreamServer(
-    id: 'vidsrc-su',
-    name: 'VidSrc.su',
-    badge: 'Active HD',
-    getMovieUrl: (tmdbId, [imdbId]) => 'https://vidsrc.su/embed/movie/$tmdbId',
-    getTvUrl: (tmdbId, imdbId, season, episode) =>
-        'https://vidsrc.su/embed/tv/$tmdbId/$season/$episode',
-  ),
-  StreamServer(
     id: 'vidsrc-pm',
     name: 'VidSrc.pm',
     badge: 'Ultra Fast',
     getMovieUrl: (tmdbId, [imdbId]) => 'https://vidsrc.pm/embed/movie?tmdb=$tmdbId',
     getTvUrl: (tmdbId, imdbId, season, episode) =>
         'https://vidsrc.pm/embed/tv?tmdb=$tmdbId&season=$season&episode=$episode',
+  ),
+  StreamServer(
+    id: 'vidlink',
+    name: 'VidLink (Ad-Free HD)',
+    badge: 'Cleanest Stream',
+    getMovieUrl: (tmdbId, [imdbId]) => 'https://vidlink.pro/movie/$tmdbId',
+    getTvUrl: (tmdbId, imdbId, season, episode) =>
+        'https://vidlink.pro/tv/$tmdbId/$season/$episode',
+  ),
+  StreamServer(
+    id: 'vidsrc-su',
+    name: 'VidSrc.su',
+    badge: 'Active HD',
+    getMovieUrl: (tmdbId, [imdbId]) => 'https://vidsrc.su/embed/movie/$tmdbId',
+    getTvUrl: (tmdbId, imdbId, season, episode) =>
+        'https://vidsrc.su/embed/tv/$tmdbId/$season/$episode',
   ),
   StreamServer(
     id: 'vidsrc-cc',
@@ -72,19 +80,20 @@ final List<StreamServer> streamServers = [
         'https://vidsrc.cc/v2/embed/tv/${imdbId?.isNotEmpty == true ? imdbId : tmdbId}/$season/$episode',
   ),
   StreamServer(
+    id: 'vidsrc-to',
+    name: 'VidSrc.to',
+    badge: 'Mirror 1',
+    getMovieUrl: (tmdbId, [imdbId]) =>
+        'https://vidsrc.to/embed/movie/${imdbId?.isNotEmpty == true ? imdbId : tmdbId}',
+    getTvUrl: (tmdbId, imdbId, season, episode) =>
+        'https://vidsrc.to/embed/tv/${imdbId?.isNotEmpty == true ? imdbId : tmdbId}/$season/$episode',
+  ),
+  StreamServer(
     id: '2embed',
     name: '2Embed',
-    badge: 'Stable Mirror',
+    badge: 'Backup',
     getMovieUrl: (tmdbId, [imdbId]) => 'https://www.2embed.cc/embed/$tmdbId',
     getTvUrl: (tmdbId, imdbId, season, episode) =>
         'https://www.2embed.cc/embedtv/$tmdbId&s=$season&e=$episode',
-  ),
-  StreamServer(
-    id: 'autoembed',
-    name: 'AutoEmbed',
-    badge: 'Auto Switch',
-    getMovieUrl: (tmdbId, [imdbId]) => 'https://player.autoembed.cc/embed/movie/$tmdbId',
-    getTvUrl: (tmdbId, imdbId, season, episode) =>
-        'https://player.autoembed.cc/embed/tv/$tmdbId/$season/$episode',
   ),
 ];

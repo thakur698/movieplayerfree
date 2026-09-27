@@ -104,6 +104,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
           onWebResourceError: (WebResourceError error) {
             // Non-critical resource errors are ignored for embeds
           },
+          onNavigationRequest: (NavigationRequest request) {
+            final uri = Uri.tryParse(request.url);
+            if (uri == null) return NavigationDecision.prevent;
+
+            // Block non-web schemes (e.g. itms-appss, intent, etc.)
+            if (uri.scheme != 'http' && uri.scheme != 'https') {
+              return NavigationDecision.prevent;
+            }
+
+            // Always allow trusted streaming domains & CDNs
+            const allowedSubstrings = [
+              'vidsrc',
+              'vidlink',
+              '2embed',
+              'autoembed',
+              'superembed',
+              'multiembed',
+              'tmdb',
+              'themoviedb',
+              'googleapis',
+              'gstatic',
+              'cloudflare',
+              'bunny',
+              'm3u8',
+            ];
+
+            final host = uri.host.toLowerCase();
+            final isAllowed = allowedSubstrings.any((sub) => host.contains(sub));
+
+            if (isAllowed) {
+              return NavigationDecision.navigate;
+            }
+
+            // Block rogue ad redirects
+            debugPrint('[AdBlock] Blocked popup/redirect to: ${request.url}');
+            return NavigationDecision.prevent;
+          },
         ),
       )
       ..loadRequest(Uri.parse(_currentStreamUrl));
