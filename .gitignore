@@ -7,16 +7,44 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies & Build
+# Dependencies & Build (Web)
 node_modules
 dist
 dist-ssr
 *.local
 
-# Environment variables & Secrets
+# Flutter & Dart artifacts
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.apk
+*.aab
+*.ipa
+
+# Android / iOS platform builds
+**/android/.gradle
+**/android/local.properties
+**/android/app/release/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+
+# Environment variables & Secrets - STRICTLY PROTECTED
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.keystore
+secrets.json
 
 # Editor directories and files
 .vscode/*
