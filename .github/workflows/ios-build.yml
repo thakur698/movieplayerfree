@@ -36,8 +36,15 @@ jobs:
           cd apps/mobile
           flutter build ios --release --no-codesign
 
-      - name: Upload iOS App Bundle
+      - name: Package into .IPA (iOS App Package)
+        run: |
+          mkdir -p apps/mobile/build/ios/ipa/Payload
+          cp -r apps/mobile/build/ios/iphoneos/Runner.app apps/mobile/build/ios/ipa/Payload/
+          cd apps/mobile/build/ios/ipa
+          zip -r CineStream.ipa Payload
+
+      - name: Upload iOS .IPA Package
         uses: actions/upload-artifact@v4
         with:
-          name: CineStream-iOS-Release
-          path: apps/mobile/build/ios/iphoneos/Runner.app
+          name: CineStream-iOS-IPA
+          path: apps/mobile/build/ios/ipa/CineStream.ipa
