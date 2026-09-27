@@ -153,12 +153,15 @@ class _DetailsScreenState extends State<DetailsScreen> {
             expandedHeight: 320,
             pinned: true,
             backgroundColor: AppColors.background,
-            leading: CircleAvatar(
-              backgroundColor: Colors.black.withOpacity(0.6),
-              radius: 18,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
-                onPressed: () => Navigator.of(context).pop(),
+            leading: Center(
+              child: CircleAvatar(
+                backgroundColor: Colors.black.withOpacity(0.6),
+                radius: 18,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
               ),
             ),
             actions: [

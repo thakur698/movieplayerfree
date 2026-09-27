@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import '../config/app_config.dart';
 import '../models/media_item.dart';
 import '../services/storage_service.dart';
@@ -76,9 +77,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _initWebViewController() {
-    _controller = WebViewController()
+    late final PlatformWebViewControllerCreationParams params;
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+
+    _controller = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.black)
+      ..setUserAgent(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -166,6 +180,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       body: SafeArea(
         top: !_isLandscape,
         bottom: !_isLandscape,
+        left: _isLandscape,
+        right: _isLandscape,
         child: Column(
           children: [
             // Video Player Area
@@ -203,7 +219,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         radius: 18,
                         child: IconButton(
                           padding: EdgeInsets.zero,
-                          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
                           onPressed: () {
                             if (_isLandscape) {
                               _toggleOrientation();
