@@ -9,22 +9,25 @@ export class StreamingPlayer {
     this.containerEl = containerEl;
     this.onBack = onBackCallback;
     this.currentMedia = null;
-    this.currentServerId = Storage.getSelectedServer() || 'vidsrc-su';
+    this.currentServerId = Storage.getSelectedServer() || 'vidsrc-pm';
     this.currentSeason = 1;
     this.currentEpisode = 1;
     this.seasonsData = [];
     this.episodesCache = new Map();
     this.hlsInstance = null;
     this.directStreamUrl = null;
-    this.blockPopups = false;
+    this.blockPopups = Storage.getAdShieldEnabled();
   }
 
   async open({ media, season = 1, episode = 1 }) {
     this.currentMedia = media;
     this.currentSeason = Number(season) || 1;
     this.currentEpisode = Number(episode) || 1;
-    this.currentServerId = Storage.getSelectedServer() || 'vidsrc-su';
+    this.currentServerId = Storage.getSelectedServer() || 'vidsrc-pm';
     this.directStreamUrl = null;
+    if (this.blockPopups) {
+      this.enablePopupTrap();
+    }
 
     // Fetch full details if external_ids or seasons are needed
     let fullDetails = media;
@@ -100,6 +103,7 @@ export class StreamingPlayer {
     const isTv = this.currentMedia.media_type === 'tv';
     const title = this.currentMedia.title || this.currentMedia.name;
     const year = (this.currentMedia.release_date || this.currentMedia.first_air_date || '').substring(0, 4);
+    const shouldSandbox = this.blockPopups && this.currentServerId !== 'vidlink';
 
     this.containerEl.innerHTML = `
       <div class="player-view-container" id="player-view-container">
@@ -121,14 +125,14 @@ export class StreamingPlayer {
           </div>
 
           <div class="player-header-actions">
-            <button class="btn btn-secondary btn-sm ${this.blockPopups ? 'btn-primary' : ''}" id="player-sandbox-toggle" title="Toggle Popup Blocker">
-              ${Icons.shield} <span>${this.blockPopups ? 'Popup Blocker: ON' : 'Popup Blocker: OFF'}</span>
+            <button class="btn btn-sm ${this.blockPopups ? 'btn-adshield-active' : 'btn-secondary'}" id="player-sandbox-toggle" title="${this.blockPopups ? 'Ad Shield is ON (Popups & Redirects Blocked)' : 'Ad Shield is OFF'}">
+              ${Icons.shield} <span class="btn-action-label">${this.blockPopups ? 'Ad Shield: ON' : 'Ad Shield: OFF'}</span>
             </button>
             <button class="btn btn-secondary btn-sm" id="player-refresh-btn" title="Reload Video Stream">
-              ${Icons.refresh} <span>Reload</span>
+              ${Icons.refresh} <span class="btn-action-label">Reload</span>
             </button>
             <button class="btn btn-secondary btn-sm" id="player-fullscreen-btn" title="Theater / Fullscreen">
-              ${Icons.maximize} <span>Fullscreen</span>
+              ${Icons.maximize} <span class="btn-action-label">Fullscreen</span>
             </button>
             <button class="btn btn-danger-soft btn-sm" id="player-close-btn" title="Close Player">
               ${Icons.close}
@@ -151,11 +155,24 @@ export class StreamingPlayer {
                   webkitallowfullscreen="true"
                   mozallowfullscreen="true"
                   allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                  ${this.blockPopups ? 'sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"' : ''}
+                  ${shouldSandbox ? 'sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"' : ''}
                   frameborder="0"
                   scrolling="no">
                 </iframe>
               `}
+            </div>
+
+            <!-- Ad Shield Status & Tip Notification Bar -->
+            <div class="ad-shield-status-bar ${this.blockPopups ? 'shield-on' : 'shield-off'}">
+              <div class="shield-status-info">
+                ${Icons.shield}
+                <span>${this.blockPopups
+                  ? '<strong>Ad Shield Active:</strong> Popups & new-tab redirects are blocked natively. If a stream buffers, click another server below.'
+                  : '<strong>Ad Shield OFF:</strong> Standard mode active. Third-party video ads and popups are not filtered.'}</span>
+              </div>
+              <button class="btn-shield-quick-toggle" id="player-shield-banner-btn">
+                ${this.blockPopups ? 'Turn OFF' : 'Turn ON'}
+              </button>
             </div>
 
             <!-- Server Switcher Toolbar -->
@@ -163,11 +180,11 @@ export class StreamingPlayer {
               <div class="server-panel-header">
                 <div class="server-label">
                   ${Icons.server}
-                  <span>VidSrc Stream Mirrors:</span>
+                  <span>Fast Stream Servers:</span>
                 </div>
                 <div class="server-tip">
                   ${Icons.shield}
-                  <span>If a server buffers, click another mirror below for instant switch</span>
+                  <span>VidLink & VidSrc.pm provide ad-free high-speed streams</span>
                 </div>
               </div>
               <div class="server-pills-row">
@@ -273,14 +290,28 @@ export class StreamingPlayer {
       });
     }
 
-    // Popup Blocker (Sandbox) Toggle
+    // Ad Shield (Popup & Redirect Blocker) Toggle
+    const toggleAdShield = () => {
+      this.blockPopups = !this.blockPopups;
+      Storage.setAdShieldEnabled(this.blockPopups);
+      if (this.blockPopups) {
+        this.enablePopupTrap();
+        this.showToast('🛡️ Ad Shield Enabled (Popups & Redirects Blocked)');
+      } else {
+        this.disablePopupTrap();
+        this.showToast('⚠️ Ad Shield Disabled (Standard Mode)');
+      }
+      this.render();
+    };
+
     const sandboxToggle = this.containerEl.querySelector('#player-sandbox-toggle');
     if (sandboxToggle) {
-      sandboxToggle.addEventListener('click', () => {
-        this.blockPopups = !this.blockPopups;
-        this.showToast(this.blockPopups ? 'Popup Blocker Enabled (Sandbox active)' : 'Standard Player Mode Enabled');
-        this.render();
-      });
+      sandboxToggle.addEventListener('click', toggleAdShield);
+    }
+
+    const bannerToggle = this.containerEl.querySelector('#player-shield-banner-btn');
+    if (bannerToggle) {
+      bannerToggle.addEventListener('click', toggleAdShield);
     }
 
     // Fullscreen
@@ -308,13 +339,7 @@ export class StreamingPlayer {
         this.directStreamUrl = null;
         Storage.setSelectedServer(srvId);
 
-        serverPills.forEach(p => p.classList.toggle('active', p.dataset.serverId === srvId));
-        const iframe = this.containerEl.querySelector('#streaming-iframe');
-        if (iframe) {
-          iframe.src = this.getEmbedUrl();
-        } else {
-          this.render();
-        }
+        this.render();
         this.showToast(`Switched to ${STREAM_SERVERS.find(s => s.id === srvId)?.name}`);
       });
     });
@@ -469,7 +494,33 @@ export class StreamingPlayer {
     }
   }
 
+  enablePopupTrap() {
+    try {
+      if (!window._origWindowOpen) {
+        window._origWindowOpen = window.open;
+      }
+      window.open = function(...args) {
+        console.warn('[AdShield] Blocked popup window.open attempt:', args);
+        return null;
+      };
+    } catch (e) {
+      console.warn('Could not hook window.open:', e);
+    }
+  }
+
+  disablePopupTrap() {
+    try {
+      if (window._origWindowOpen) {
+        window.open = window._origWindowOpen;
+        delete window._origWindowOpen;
+      }
+    } catch (e) {
+      console.warn('Could not restore window.open:', e);
+    }
+  }
+
   close() {
+    this.disablePopupTrap();
     if (this.hlsInstance) {
       this.hlsInstance.destroy();
       this.hlsInstance = null;

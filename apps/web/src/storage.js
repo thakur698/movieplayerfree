@@ -5,6 +5,7 @@ const KEYS = {
   CONTINUE_WATCHING: 'cinestream_continue_watching',
   SELECTED_SERVER: 'cinestream_selected_server',
   CUSTOM_API_KEY: 'cinestream_custom_api_key',
+  AD_SHIELD: 'cinestream_ad_shield',
 };
 
 export const Storage = {
@@ -97,11 +98,21 @@ export const Storage = {
 
   // Server preference
   getSelectedServer() {
-    return localStorage.getItem(KEYS.SELECTED_SERVER) || 'vidsrc-to';
+    return localStorage.getItem(KEYS.SELECTED_SERVER) || 'vidsrc-pm';
   },
 
   setSelectedServer(serverId) {
     localStorage.setItem(KEYS.SELECTED_SERVER, serverId);
+  },
+
+  // Ad Shield preference (defaults to true for maximum ad & popup blocking)
+  getAdShieldEnabled() {
+    const val = localStorage.getItem(KEYS.AD_SHIELD);
+    return val === null ? true : val === 'true';
+  },
+
+  setAdShieldEnabled(enabled) {
+    localStorage.setItem(KEYS.AD_SHIELD, String(enabled));
   },
 
   // Custom API key override

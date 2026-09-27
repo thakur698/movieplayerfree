@@ -51,11 +51,19 @@ export class Navbar {
             <button class="nav-link ${this.activeRoute === 'watchlist' ? 'active' : ''}" data-route="watchlist">
               Watchlist <span class="nav-badge" id="nav-watchlist-count" style="display:none"></span>
             </button>
+            
+            <div class="mobile-menu-divider"></div>
+            <button class="nav-link mobile-only-link" id="mobile-surprise-btn">
+              ${Icons.dice} <span>Surprise Me</span>
+            </button>
+            <button class="nav-link mobile-only-link" id="mobile-settings-btn">
+              ${Icons.settings} <span>Settings & Servers</span>
+            </button>
           </nav>
         </div>
 
         <div class="navbar-right">
-          <!-- Surprise Me / Roulette Button -->
+          <!-- Surprise Me / Roulette Button (Desktop) -->
           <button class="nav-surprise-btn" id="nav-surprise-btn" title="Pick a random top movie or series">
             ${Icons.dice} <span>Surprise Me</span>
           </button>
@@ -150,10 +158,40 @@ export class Navbar {
     const toggle = this.containerEl.querySelector('#mobile-menu-toggle');
     const menu = this.containerEl.querySelector('#nav-links-menu');
     if (toggle) {
-      toggle.addEventListener('click', () => {
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
         menu.classList.toggle('mobile-open');
+        toggle.classList.toggle('is-active');
       });
     }
+
+    // Mobile-only surprise button
+    const mobileSurpriseBtn = this.containerEl.querySelector('#mobile-surprise-btn');
+    if (mobileSurpriseBtn) {
+      mobileSurpriseBtn.addEventListener('click', () => {
+        menu.classList.remove('mobile-open');
+        toggle?.classList.remove('is-active');
+        if (this.onSurpriseMe) this.onSurpriseMe();
+      });
+    }
+
+    // Mobile-only settings button
+    const mobileSettingsBtn = this.containerEl.querySelector('#mobile-settings-btn');
+    if (mobileSettingsBtn) {
+      mobileSettingsBtn.addEventListener('click', () => {
+        menu.classList.remove('mobile-open');
+        toggle?.classList.remove('is-active');
+        if (this.onOpenSettings) this.onOpenSettings();
+      });
+    }
+
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (menu && !menu.contains(e.target) && !toggle?.contains(e.target)) {
+        menu.classList.remove('mobile-open');
+        toggle?.classList.remove('is-active');
+      }
+    });
 
     // Search input handling
     const searchInput = this.containerEl.querySelector('#global-search-input');

@@ -11,27 +11,35 @@ export const CONFIG = {
   TMDB_IMAGE_W780: 'https://image.tmdb.org/t/p/w780',
   PLACEHOLDER_POSTER: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=500&auto=format&fit=crop&q=80',
   PLACEHOLDER_BACKDROP: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=1280&auto=format&fit=crop&q=80',
-  DEFAULT_SERVER: 'vidsrc-su',
+  DEFAULT_SERVER: 'vidsrc-pm',
 };
 
 // Streaming Servers configuration supporting both Movies & Web Series (TV shows)
-// Prioritized by verified working status and speed
+// Prioritized by verified working status, ad-blocking compatibility, and stream speed
 export const STREAM_SERVERS = [
-  {
-    id: 'vidsrc-su',
-    name: 'VidSrc.su',
-    badge: 'Active HD',
-    isPrimary: true,
-    getMovieUrl: (tmdbId, imdbId) => `https://vidsrc.su/embed/movie/${tmdbId}`,
-    getTvUrl: (tmdbId, imdbId, season, episode) => `https://vidsrc.su/embed/tv/${tmdbId}/${season}/${episode}`
-  },
   {
     id: 'vidsrc-pm',
     name: 'VidSrc.pm',
     badge: 'Ultra Fast',
-    isPrimary: false,
+    isPrimary: true,
     getMovieUrl: (tmdbId, imdbId) => `https://vidsrc.pm/embed/movie?tmdb=${tmdbId}`,
     getTvUrl: (tmdbId, imdbId, season, episode) => `https://vidsrc.pm/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`
+  },
+  {
+    id: 'vidlink',
+    name: 'VidLink (Ad-Free HD)',
+    badge: 'Cleanest Stream',
+    isPrimary: false,
+    getMovieUrl: (tmdbId, imdbId) => `https://vidlink.pro/movie/${tmdbId}`,
+    getTvUrl: (tmdbId, imdbId, season, episode) => `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}`
+  },
+  {
+    id: 'vidsrc-su',
+    name: 'VidSrc.su',
+    badge: 'Active HD',
+    isPrimary: false,
+    getMovieUrl: (tmdbId, imdbId) => `https://vidsrc.su/embed/movie/${tmdbId}`,
+    getTvUrl: (tmdbId, imdbId, season, episode) => `https://vidsrc.su/embed/tv/${tmdbId}/${season}/${episode}`
   },
   {
     id: 'vidsrc-cc',
@@ -42,28 +50,20 @@ export const STREAM_SERVERS = [
     getTvUrl: (tmdbId, imdbId, season, episode) => `https://vidsrc.cc/v2/embed/tv/${imdbId || tmdbId}/${season}/${episode}`
   },
   {
-    id: '2embed',
-    name: '2Embed',
-    badge: 'Stable Mirror',
-    isPrimary: false,
-    getMovieUrl: (tmdbId) => `https://www.2embed.cc/embed/${tmdbId}`,
-    getTvUrl: (tmdbId, imdbId, season, episode) => `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
-  },
-  {
-    id: 'autoembed',
-    name: 'AutoEmbed',
-    badge: 'Auto Switch',
-    isPrimary: false,
-    getMovieUrl: (tmdbId) => `https://player.autoembed.cc/embed/movie/${tmdbId}`,
-    getTvUrl: (tmdbId, imdbId, season, episode) => `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`
-  },
-  {
     id: 'vidsrc-to',
     name: 'VidSrc.to',
     badge: 'Mirror 1',
     isPrimary: false,
     getMovieUrl: (tmdbId, imdbId) => `https://vidsrc.to/embed/movie/${imdbId || tmdbId}`,
     getTvUrl: (tmdbId, imdbId, season, episode) => `https://vidsrc.to/embed/tv/${imdbId || tmdbId}/${season}/${episode}`
+  },
+  {
+    id: '2embed',
+    name: '2Embed',
+    badge: 'Stable Mirror',
+    isPrimary: false,
+    getMovieUrl: (tmdbId) => `https://www.2embed.cc/embed/${tmdbId}`,
+    getTvUrl: (tmdbId, imdbId, season, episode) => `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
   },
   {
     id: 'vidsrc-me',
