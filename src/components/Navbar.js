@@ -1,0 +1,276 @@
+import { Icons } from '../icons.js';
+import { tmdbApi } from '../api.js';
+import { Storage } from '../storage.js';
+
+export class Navbar {
+  constructor(containerEl, { onNavigate, onSearch, onOpenDetails, onOpenSettings, onSurpriseMe }) {
+    this.containerEl = containerEl;
+    this.onNavigate = onNavigate;
+    this.onSearch = onSearch;
+    this.onOpenDetails = onOpenDetails;
+    this.onOpenSettings = onOpenSettings;
+    this.onSurpriseMe = onSurpriseMe;
+    this.activeRoute = 'home';
+    this.debounceTimer = null;
+    this.render();
+  }
+
+  setRoute(route) {
+    this.activeRoute = route;
+    const links = this.containerEl.querySelectorAll('.nav-link');
+    links.forEach(l => {
+      l.classList.toggle('active', l.dataset.route === route);
+    });
+    this.updateWatchlistBadge();
+  }
+
+  updateWatchlistBadge() {
+    const badge = this.containerEl.querySelector('#nav-watchlist-count');
+    if (badge) {
+      const count = Storage.getWatchlist().length;
+      badge.textContent = count > 0 ? count : '';
+      badge.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+  }
+
+  render() {
+    this.containerEl.innerHTML = `
+      <div class="navbar-wrapper">
+        <div class="navbar-left">
+          <a href="#" class="brand-logo" id="nav-brand-logo">
+            <span class="logo-icon">${Icons.play}</span>
+            <span class="logo-text">Cine<span class="logo-accent">Stream</span></span>
+          </a>
+
+          <nav class="nav-links-menu" id="nav-links-menu">
+            <button class="nav-link ${this.activeRoute === 'home' ? 'active' : ''}" data-route="home">Home</button>
+            <button class="nav-link ${this.activeRoute === 'movies' ? 'active' : ''}" data-route="movies">Movies</button>
+            <button class="nav-link ${this.activeRoute === 'series' ? 'active' : ''}" data-route="series">Web Series</button>
+            <button class="nav-link ${this.activeRoute === 'trending' ? 'active' : ''}" data-route="trending">Trending</button>
+            <button class="nav-link ${this.activeRoute === 'genres' ? 'active' : ''}" data-route="genres">Genres</button>
+            <button class="nav-link ${this.activeRoute === 'watchlist' ? 'active' : ''}" data-route="watchlist">
+              Watchlist <span class="nav-badge" id="nav-watchlist-count" style="display:none"></span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="navbar-right">
+          <!-- Surprise Me / Roulette Button -->
+          <button class="nav-surprise-btn" id="nav-surprise-btn" title="Pick a random top movie or series">
+            ${Icons.dice} <span>Surprise Me</span>
+          </button>
+
+          <!-- Search box with instant flyout -->
+          <div class="search-input-box" id="search-input-box">
+            <span class="search-icon">${Icons.search}</span>
+            <input
+              type="text"
+              id="global-search-input"
+              class="search-input"
+              placeholder="Search (Ctrl + K)"
+              autocomplete="off"
+            />
+            <button class="search-clear-btn" id="search-clear-btn" style="display:none" title="Clear search">
+              ${Icons.close}
+            </button>
+
+            <!-- Autocomplete Live Dropdown -->
+            <div class="search-dropdown-results" id="search-dropdown-results" style="display:none"></div>
+          </div>
+
+          <!-- Settings Button -->
+          <button class="btn btn-icon btn-glass" id="nav-settings-btn" title="Settings & Stream Servers">
+            ${Icons.settings}
+          </button>
+
+          <!-- Mobile Menu Toggle -->
+          <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    this.bindEvents();
+    this.updateWatchlistBadge();
+  }
+
+  bindEvents() {
+    // Brand click -> home
+    const brand = this.containerEl.querySelector('#nav-brand-logo');
+    brand.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.onNavigate('home');
+    });
+
+    // Nav links click
+    const links = this.containerEl.querySelectorAll('.nav-link');
+    links.forEach(l => {
+      l.addEventListener('click', () => {
+        const route = l.dataset.route;
+        this.setRoute(route);
+        this.onNavigate(route);
+
+        const menu = this.containerEl.querySelector('#nav-links-menu');
+        menu.classList.remove('mobile-open');
+      });
+    });
+
+    // Surprise Me
+    const surpriseBtn = this.containerEl.querySelector('#nav-surprise-btn');
+    if (surpriseBtn) {
+      surpriseBtn.addEventListener('click', () => {
+        if (this.onSurpriseMe) this.onSurpriseMe();
+      });
+    }
+
+    // Keyboard shortcut Ctrl+K to search
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        const searchInput = this.containerEl.querySelector('#global-search-input');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+    });
+
+    // Settings click
+    const settingsBtn = this.containerEl.querySelector('#nav-settings-btn');
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', () => {
+        if (this.onOpenSettings) this.onOpenSettings();
+      });
+    }
+
+    // Mobile menu toggle
+    const toggle = this.containerEl.querySelector('#mobile-menu-toggle');
+    const menu = this.containerEl.querySelector('#nav-links-menu');
+    if (toggle) {
+      toggle.addEventListener('click', () => {
+        menu.classList.toggle('mobile-open');
+      });
+    }
+
+    // Search input handling
+    const searchInput = this.containerEl.querySelector('#global-search-input');
+    const clearBtn = this.containerEl.querySelector('#search-clear-btn');
+    const dropdown = this.containerEl.querySelector('#search-dropdown-results');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const q = e.target.value.trim();
+        clearBtn.style.display = q ? 'block' : 'none';
+
+        clearTimeout(this.debounceTimer);
+        if (!q) {
+          dropdown.style.display = 'none';
+          dropdown.innerHTML = '';
+          return;
+        }
+
+        this.debounceTimer = setTimeout(async () => {
+          await this.performLiveSearch(q);
+        }, 280);
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const q = searchInput.value.trim();
+          if (q) {
+            dropdown.style.display = 'none';
+            if (this.onSearch) this.onSearch(q);
+          }
+        }
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!this.containerEl.querySelector('#search-input-box').contains(e.target)) {
+          dropdown.style.display = 'none';
+        }
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        clearBtn.style.display = 'none';
+        dropdown.style.display = 'none';
+        searchInput.focus();
+      });
+    }
+  }
+
+  async performLiveSearch(query) {
+    const dropdown = this.containerEl.querySelector('#search-dropdown-results');
+    dropdown.innerHTML = `<div class="dropdown-spinner"><div class="spinner-sm"></div> Searching titles...</div>`;
+    dropdown.style.display = 'block';
+
+    try {
+      const data = await tmdbApi.searchMulti(query);
+      const items = (data.results || []).filter(item => (item.media_type === 'movie' || item.media_type === 'tv') && item.poster_path).slice(0, 6);
+
+      if (items.length === 0) {
+        dropdown.innerHTML = `<div class="dropdown-empty">No results found for "${query}"</div>`;
+        return;
+      }
+
+      dropdown.innerHTML = `
+        <div class="dropdown-list">
+          ${items.map(item => {
+            const isTv = item.media_type === 'tv';
+            const title = item.title || item.name;
+            const year = (item.release_date || item.first_air_date || '').substring(0, 4);
+            const poster = tmdbApi.getPosterUrl(item.poster_path, 'w185');
+
+            return `
+              <div class="dropdown-item" data-id="${item.id}" data-type="${item.media_type}">
+                <img src="${poster}" alt="${title}" class="dropdown-thumb" />
+                <div class="dropdown-item-meta">
+                  <span class="dropdown-item-title">${title}</span>
+                  <div class="dropdown-sub">
+                    <span class="badge ${isTv ? 'badge-tv' : 'badge-movie'}">${isTv ? 'SERIES' : 'MOVIE'}</span>
+                    ${year ? `<span>${year}</span>` : ''}
+                    ${item.vote_average ? `<span>⭐ ${item.vote_average.toFixed(1)}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+          <div class="dropdown-footer">
+            <button class="dropdown-see-all-btn" id="dropdown-see-all-btn">
+              View all results for "${query}" &rarr;
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Item click
+      const itemEls = dropdown.querySelectorAll('.dropdown-item');
+      itemEls.forEach(el => {
+        el.addEventListener('click', () => {
+          const id = el.dataset.id;
+          const type = el.dataset.type;
+          dropdown.style.display = 'none';
+          if (this.onOpenDetails) this.onOpenDetails(type, id);
+        });
+      });
+
+      // View all button
+      const seeAllBtn = dropdown.querySelector('#dropdown-see-all-btn');
+      if (seeAllBtn) {
+        seeAllBtn.addEventListener('click', () => {
+          dropdown.style.display = 'none';
+          if (this.onSearch) this.onSearch(query);
+        });
+      }
+    } catch (err) {
+      console.error('Autocomplete search failed:', err);
+      dropdown.innerHTML = `<div class="dropdown-empty">Search temporarily unavailable</div>`;
+    }
+  }
+}
