@@ -69,6 +69,10 @@ class CineStreamApp {
       this.navbar.updateWatchlistBadge();
     });
 
+    document.addEventListener('open-settings', () => {
+      this.settingsModal.open();
+    });
+
     // Keyboard shortcut Escape closes details modal
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {

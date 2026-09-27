@@ -127,10 +127,23 @@ export class HomeView {
       const carouselsContainer = this.containerEl.querySelector('#home-carousels-container');
       if (carouselsContainer) {
         carouselsContainer.innerHTML = `
-          <div class="error-banner">
-            <p>Could not load catalogs from TMDB. Please check your internet connection or API settings.</p>
+          <div class="error-banner" style="text-align: center; padding: 48px 24px; max-width: 580px; margin: 32px auto; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">🔑</div>
+            <h3 style="font-size: 1.25rem; margin-bottom: 8px; color: var(--text-primary); font-weight: 700;">TMDB API Setup Required</h3>
+            <p style="font-size: 0.95rem; margin-bottom: 20px; color: var(--text-secondary); line-height: 1.5;">
+              To prevent credentials from leaking on GitHub, the app requires a free TMDB API key. Click below to enter your key or configure it in Vercel.
+            </p>
+            <button class="btn btn-primary" id="home-setup-api-key-btn" style="padding: 12px 24px; font-weight: 700; border-radius: 10px; cursor: pointer;">
+              ⚙️ Enter API Key Now
+            </button>
           </div>
         `;
+        const setupBtn = carouselsContainer.querySelector('#home-setup-api-key-btn');
+        if (setupBtn) {
+          setupBtn.addEventListener('click', () => {
+            document.dispatchEvent(new CustomEvent('open-settings'));
+          });
+        }
       }
     }
   }
