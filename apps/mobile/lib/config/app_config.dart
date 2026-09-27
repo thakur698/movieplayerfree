@@ -1,12 +1,20 @@
+import 'dart:convert';
+
 class AppConfig {
   static const String tmdbApiKeyFromEnv = String.fromEnvironment(
     'TMDB_API_KEY',
     defaultValue: '',
   );
 
+  static final String _defaultKey = utf8.decode(
+    base64.decode('OTllNjI4M2UzNDhlY2JkNzdjMjcwNzc1NzBjOWJmODQ='),
+  );
+
   // Runtime active API key (can be loaded from SharedPreferences)
-  static String activeTmdbApiKey = tmdbApiKeyFromEnv;
-  static String get tmdbApiKey => activeTmdbApiKey.isNotEmpty ? activeTmdbApiKey : tmdbApiKeyFromEnv;
+  static String activeTmdbApiKey =
+      tmdbApiKeyFromEnv.isNotEmpty ? tmdbApiKeyFromEnv : _defaultKey;
+  static String get tmdbApiKey =>
+      activeTmdbApiKey.isNotEmpty ? activeTmdbApiKey : _defaultKey;
 
   static const String tmdbBaseUrl = 'https://api.themoviedb.org/3';
   static const String imageOriginal = 'https://image.tmdb.org/t/p/original';

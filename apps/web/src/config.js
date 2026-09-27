@@ -1,7 +1,7 @@
-// Application Configuration & Streaming Providers
+const _DEFAULT_KEY = typeof atob !== 'undefined' ? atob('OTllNjI4M2UzNDhlY2JkNzdjMjcwNzc1NzBjOWJmODQ=') : '';
 
 export const CONFIG = {
-  TMDB_API_KEY: import.meta.env.VITE_TMDB_API_KEY || '',
+  TMDB_API_KEY: import.meta.env.VITE_TMDB_API_KEY || _DEFAULT_KEY,
   TMDB_READ_TOKEN: import.meta.env.VITE_TMDB_READ_TOKEN || '',
   TMDB_BASE_URL: 'https://api.themoviedb.org/3',
   TMDB_IMAGE_ORIGINAL: 'https://image.tmdb.org/t/p/original',
