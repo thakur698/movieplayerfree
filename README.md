@@ -39,13 +39,23 @@ cd movieplayerfree
 npm install
 ```
 
-### 3. Start development server
+### 3. Configure API Credentials
+Copy the example environment file and add your [TMDB API Key](https://www.themoviedb.org/settings/api):
+```bash
+cp .env.example .env
+```
+In `.env`:
+```env
+VITE_TMDB_API_KEY=your_tmdb_api_key_here
+```
+
+### 4. Start development server
 ```bash
 npm run dev
 ```
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-### 4. Build for production
+### 5. Build for production
 ```bash
 npm run build
 ```
