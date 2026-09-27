@@ -2,6 +2,7 @@
   "name": "cinestream-monorepo",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "CineStream Monorepo: Luxury Cinema Streaming for Web (HTML/JS/Vite) and Mobile (Flutter for Android & iOS)",
   "workspaces": [
     "apps/web"
@@ -19,6 +20,9 @@
     "build:apk": "cd apps/mobile && flutter build apk --release",
     "build:appbundle": "cd apps/mobile && flutter build appbundle --release",
     "build:ipa": "cd apps/mobile && flutter build ipa --release"
+  },
+  "devDependencies": {
+    "vite": "^8.3.1"
   },
   "keywords": [
     "cinestream",
