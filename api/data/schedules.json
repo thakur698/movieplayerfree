@@ -1,25 +1,4 @@
 {
-  "therealthakur.10@gmail.com": {
-    "updatedAt": "2026-09-28T20:20:04.403Z",
-    "name": "ABHI Thakur",
-    "scheduledEmails": [
-      {
-        "id": "f89f8d1a-1ce2-4567-b491-309165ed6e63",
-        "days": 4,
-        "scheduled_at": "2026-10-02T20:11:11.377Z"
-      },
-      {
-        "id": "0ad0df9f-221d-413b-a132-e527eb5ce87f",
-        "days": 6,
-        "scheduled_at": "2026-10-04T20:11:11.377Z"
-      },
-      {
-        "id": "80b7bcc9-6a8c-4329-b176-0291b2bb4bc1",
-        "days": 8,
-        "scheduled_at": "2026-10-06T20:11:11.377Z"
-      }
-    ]
-  },
   "therealthakur2.10@gmail.com": {
     "updatedAt": "2026-09-28T20:21:29.335Z",
     "name": "Alex",
@@ -43,6 +22,37 @@
         "id": "da5376f7-d75b-4fa4-a96b-9ef6d26fa496",
         "days": 8,
         "scheduled_at": "2026-10-06T20:21:25.291Z"
+      }
+    ]
+  },
+  "therealthakur.10@gmail.com": {
+    "updatedAt": "2026-09-28T20:59:18.339Z",
+    "name": "ABHI Thakur",
+    "scheduledEmails": []
+  },
+  "redevs.india@gmail.com": {
+    "updatedAt": "2026-09-28T21:01:20.910Z",
+    "name": "Redevs India",
+    "scheduledEmails": [
+      {
+        "id": "44dd7d6a-1355-42f1-988c-014f6e8dada2",
+        "days": 2,
+        "scheduled_at": "2026-09-30T21:01:17.470Z"
+      },
+      {
+        "id": "2b8687bd-6d3e-47d3-9480-be9b8bd3c003",
+        "days": 4,
+        "scheduled_at": "2026-10-02T21:01:17.470Z"
+      },
+      {
+        "id": "2f29094a-195a-4f3b-81ab-d49bdfd690f5",
+        "days": 6,
+        "scheduled_at": "2026-10-04T21:01:17.470Z"
+      },
+      {
+        "id": "d18d79d7-7a9a-47f9-902a-1e393fea268f",
+        "days": 8,
+        "scheduled_at": "2026-10-06T21:01:17.470Z"
       }
     ]
   }

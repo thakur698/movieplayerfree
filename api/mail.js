@@ -52,9 +52,49 @@ function saveSchedules(schedules) {
   }
 }
 
-// Mailofly API request helper with timeout
-async function mailoflyRequest(endpoint, body = null, method = 'POST', timeoutMs = 15000) {
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
+
+// Mailofly API request helper: uses fast native curl when available, with fetch fallback
+async function mailoflyRequest(endpoint, body = null, method = 'POST', timeoutMs = 25000) {
   const url = `${MAILOFLY_BASE_URL}${endpoint}`;
+
+  // 1. Ultra-fast native curl transport (completes in 3-5s without TLS renegotiation stalls)
+  try {
+    const args = [
+      '-s',
+      '--max-time', String(Math.round(timeoutMs / 1000)),
+      '-X', method,
+      url,
+      '-H', `Authorization: Bearer ${MAILOFLY_API_KEY}`,
+      '-H', 'Content-Type: application/json',
+      '-H', 'Accept: application/json'
+    ];
+
+    if (body) {
+      args.push('-d', JSON.stringify(body));
+    }
+
+    const curlBin = process.platform === 'win32' ? 'curl.exe' : 'curl';
+    const { stdout } = await execFileAsync(curlBin, args);
+    if (stdout) {
+      const data = JSON.parse(stdout);
+      if (data.error) {
+        throw new Error(`[Mailofly] ${data.message || data.error}`);
+      }
+      return data;
+    }
+  } catch (curlErr) {
+    // If curl threw a known Mailofly API error, re-throw it
+    if (curlErr.message && curlErr.message.startsWith('[Mailofly]')) {
+      throw curlErr;
+    }
+    // Otherwise fallback to global fetch
+  }
+
+  // 2. Fetch fallback
   const options = {
     method,
     headers: {

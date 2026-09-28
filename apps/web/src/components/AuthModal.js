@@ -227,6 +227,8 @@ export class AuthModal {
         return 'Please enter a valid email address.';
       case 'auth/popup-closed-by-user':
         return 'Sign-in popup was closed before completing authentication.';
+      case 'auth/unauthorized-domain':
+        return `Domain "${window.location.hostname}" is not authorized in Firebase. Please add "${window.location.hostname}" in Firebase Console > Authentication > Settings > Authorized domains.`;
       case 'auth/operation-not-allowed':
       case 'auth/configuration-not-found':
         return 'Authentication method is being enabled in the Firebase Console. Please make sure Email/Password is toggled ON under Authentication > Sign-in method.';
