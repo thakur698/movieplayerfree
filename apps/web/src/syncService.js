@@ -1,14 +1,15 @@
 // Cloud Sync Service for CineStream
-// Synchronizes Watchlist, Streaming History, and Preferences across devices using Firebase Storage with resilient serverless fallback
+// Synchronizes Watchlist, Streaming History, and Preferences across devices using Cloud Firestore & Firebase Storage
 
-import { storage } from './firebase.js';
+import { db, storage } from './firebase.js';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadString, getBytes } from 'firebase/storage';
 import { Storage } from './storage.js';
 
 let pushTimer = null;
 let isSyncing = false;
 
-// Helpers for smart merging
+// Helpers for smart two-way merging
 function mergeWatchlist(localList = [], remoteList = []) {
   const map = new Map();
 
@@ -57,7 +58,31 @@ function mergeContinueWatching(localList = [], remoteList = []) {
 }
 
 export const SyncService = {
-  // 1. Fetch remote data from Firebase Storage (Tier 1)
+  // 1. Fetch from Cloud Firestore (Primary Engine)
+  async fetchFromFirestore(uid) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const snap = await getDoc(userRef);
+      return snap.exists() ? snap.data() : null;
+    } catch (err) {
+      console.warn('[SyncService] Firestore read notice:', err.message);
+      return null;
+    }
+  },
+
+  // 2. Save to Cloud Firestore (Primary Engine)
+  async saveToFirestore(uid, payload) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await setDoc(userRef, payload, { merge: true });
+      return true;
+    } catch (err) {
+      console.warn('[SyncService] Firestore save notice:', err.message);
+      return false;
+    }
+  },
+
+  // 3. Fetch from Firebase Storage
   async fetchFromFirebaseStorage(uid) {
     try {
       const fileRef = ref(storage, `users/${uid}/userdata.json`);
@@ -65,42 +90,52 @@ export const SyncService = {
       const text = new TextDecoder().decode(bytes);
       return JSON.parse(text);
     } catch (err) {
-      if (err.code === 'storage/object-not-found') {
-        return null; // First time user, no cloud record yet
-      }
-      throw err;
+      return null;
     }
   },
 
-  // 2. Save remote data to Firebase Storage (Tier 1)
+  // 4. Save to Firebase Storage
   async saveToFirebaseStorage(uid, payload) {
-    const fileRef = ref(storage, `users/${uid}/userdata.json`);
-    const raw = JSON.stringify(payload);
-    await uploadString(fileRef, raw, 'raw', {
-      contentType: 'application/json'
-    });
+    try {
+      const fileRef = ref(storage, `users/${uid}/userdata.json`);
+      const raw = JSON.stringify(payload);
+      await uploadString(fileRef, raw, 'raw', {
+        contentType: 'application/json'
+      });
+      return true;
+    } catch (err) {
+      return false;
+    }
   },
 
-  // 3. Fetch from Serverless Sync API (Tier 2 Fallback)
+  // 5. Fetch from Serverless Sync API (Fallback)
   async fetchFromApiSync(uid) {
-    const res = await fetch(`/api/sync?uid=${encodeURIComponent(uid)}`);
-    if (!res.ok) throw new Error(`Sync API responded with ${res.status}`);
-    const json = await res.json();
-    return json.data || null;
+    try {
+      const res = await fetch(`/api/sync?uid=${encodeURIComponent(uid)}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data || null;
+    } catch (err) {
+      return null;
+    }
   },
 
-  // 4. Save to Serverless Sync API (Tier 2 Fallback)
+  // 6. Save to Serverless Sync API (Fallback)
   async saveToApiSync(uid, payload) {
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uid,
-        watchlist: payload.watchlist,
-        continueWatching: payload.continueWatching,
-        settings: payload.settings
-      })
-    });
+    try {
+      await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid,
+          watchlist: payload.watchlist,
+          continueWatching: payload.continueWatching,
+          settings: payload.settings
+        })
+      });
+    } catch (err) {
+      // Ignore network errors
+    }
   },
 
   // Synchronize on user login (Two-Way Smart Merge)
@@ -111,19 +146,22 @@ export const SyncService = {
 
     let remoteData = null;
 
-    // Try Tier 1: Firebase Storage
-    try {
+    // 1. Try Cloud Firestore
+    remoteData = await this.fetchFromFirestore(user.uid);
+    if (remoteData) {
+      console.log('[SyncService] Loaded user snapshot from Cloud Firestore');
+    }
+
+    // 2. Try Firebase Storage if Firestore had no record
+    if (!remoteData) {
       remoteData = await this.fetchFromFirebaseStorage(user.uid);
       if (remoteData) console.log('[SyncService] Loaded user snapshot from Firebase Storage');
-    } catch (storageErr) {
-      console.warn('[SyncService] Firebase Storage note (checking cloud fallback):', storageErr.message);
-      // Try Tier 2: Serverless Sync API Fallback
-      try {
-        remoteData = await this.fetchFromApiSync(user.uid);
-        if (remoteData) console.log('[SyncService] Loaded user snapshot from Cloud Sync API');
-      } catch (apiErr) {
-        console.warn('[SyncService] Could not reach sync API:', apiErr.message);
-      }
+    }
+
+    // 3. Try Cloud API Fallback
+    if (!remoteData) {
+      remoteData = await this.fetchFromApiSync(user.uid);
+      if (remoteData) console.log('[SyncService] Loaded user snapshot from Cloud Backup API');
     }
 
     const localWatchlist = Storage.getWatchlist();
@@ -148,21 +186,24 @@ export const SyncService = {
     document.dispatchEvent(new CustomEvent('watchlist-updated'));
     document.dispatchEvent(new CustomEvent('continue-watching-updated'));
 
-    // Upload merged result back to cloud
+    // Upload merged result back to Firestore & Cloud
     await this.pushToCloud(user.uid, {
+      uid: user.uid,
+      email: user.email,
       watchlist: mergedWatchlist,
       continueWatching: mergedContinueWatching,
       settings: {
         selectedServer: Storage.getSelectedServer(),
         adShield: Storage.getAdShieldEnabled()
-      }
+      },
+      updatedAt: Date.now()
     });
 
     isSyncing = false;
     console.log('[SyncService] Synchronization complete! Watchlist items:', mergedWatchlist.length, 'Continue Watching:', mergedContinueWatching.length);
   },
 
-  // Push current state to Cloud (Tier 1 & Tier 2)
+  // Push current state to Cloud (Firestore -> Storage -> Backup API)
   async pushToCloud(uid, data = null) {
     if (!uid) return;
 
@@ -177,19 +218,14 @@ export const SyncService = {
       updatedAt: Date.now()
     };
 
-    // Push to Firebase Storage
-    try {
-      await this.saveToFirebaseStorage(uid, payload);
-    } catch (e) {
-      // Ignore if storage rules or bucket are being initialized
-    }
+    // 1. Primary: Save to Cloud Firestore
+    await this.saveToFirestore(uid, payload);
 
-    // Always push to Serverless API fallback
-    try {
-      await this.saveToApiSync(uid, payload);
-    } catch (e) {
-      // Ignore network errors
-    }
+    // 2. Secondary: Save to Firebase Storage
+    this.saveToFirebaseStorage(uid, payload).catch(() => {});
+
+    // 3. Fallback: Save to Backup API
+    this.saveToApiSync(uid, payload).catch(() => {});
   },
 
   // Debounced push on user action (adding to watchlist, watching video)
