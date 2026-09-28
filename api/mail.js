@@ -235,6 +235,35 @@ function buildEmailHtml({ title, preheader, headline, bodyContent, ctaText = 'St
   `;
 }
 
+// Sync user to Mailofly Audience / Contacts list
+export async function syncAudienceContact({ email, name = '' }) {
+  if (!email) return null;
+  const parts = (name || '').trim().split(' ');
+  const firstName = parts[0] || email.split('@')[0];
+  const lastName = parts.slice(1).join(' ') || null;
+
+  try {
+    const contact = await mailoflyRequest('/contacts', {
+      email,
+      first_name: firstName,
+      last_name: lastName,
+      properties: {
+        platform: 'CineStream Web App',
+        plan: 'Free VIP'
+      }
+    }, 'POST');
+    console.log(`[Mail Service] Added contact to Mailofly audience: ${email}`);
+    return contact;
+  } catch (err) {
+    // If contact already exists in audience, ignore duplicate unique constraint
+    if (err.message && (err.message.includes('duplicate') || err.message.includes('unique'))) {
+      return { status: 'already_exists', email };
+    }
+    console.warn(`[Mail Service] Contact sync note for ${email}:`, err.message);
+    return null;
+  }
+}
+
 // 1. Send Welcome Email (dispatched immediately on sign up or login)
 export async function sendWelcomeEmail({ to, name = '', isNewUser = false }) {
   const safeName = name ? name.split(' ')[0] : 'Movie Lover';
@@ -494,12 +523,15 @@ export default async function mailHandler(req, res) {
 
   try {
     if (action === 'welcome' || action === 'login') {
-      // 1. Send Welcome Email immediately
+      // 1. Add/Sync user in Mailofly Audience Contacts (non-blocking)
+      syncAudienceContact({ email, name }).catch(() => {});
+
+      // 2. Send Welcome Email immediately
       console.log(`[CineStream Mail API] Dispatching welcome email to ${email}...`);
       const welcomeResult = await sendWelcomeEmail({ to: email, name, isNewUser });
       console.log(`[CineStream Mail API] Welcome email sent successfully! ID: ${welcomeResult.id}`);
 
-      // 2. Schedule inactivity sequence in background
+      // 3. Schedule inactivity sequence in background
       (async () => {
         try {
           await cancelUserInactivityEmails(email);
