@@ -260,34 +260,34 @@ export class StreamingPlayer {
                 <button class="audio-opt-btn ${this.currentServerId === 'vidlink' ? 'active' : ''}" data-server-id="vidlink">
                   <span class="flag">🇺🇸</span>
                   <div class="audio-info">
-                    <span class="name">English (Original Audio • 1080p)</span>
-                    <span class="meta">VidLink • Cleanest Stream • 0 Ads</span>
+                    <span class="name">VidLink (Ad-Free HD)</span>
+                    <span class="meta">Original Audio • Multi-Subtitles [CC] • 0 Ads</span>
                   </div>
                   ${this.currentServerId === 'vidlink' ? '<span class="check-icon">✓</span>' : ''}
-                </button>
-                <button class="audio-opt-btn ${this.currentServerId === 'superembed' ? 'active' : ''}" data-server-id="superembed">
-                  <span class="flag">🇮🇳</span>
-                  <div class="audio-info">
-                    <span class="name">Hindi Dubbed & Multi-Audio</span>
-                    <span class="meta">SuperEmbed • VIP Multi-Dubs</span>
-                  </div>
-                  ${this.currentServerId === 'superembed' ? '<span class="check-icon">✓</span>' : ''}
-                </button>
-                <button class="audio-opt-btn ${this.currentServerId === 'vidsrc-su' ? 'active' : ''}" data-server-id="vidsrc-su">
-                  <span class="flag">🌐</span>
-                  <div class="audio-info">
-                    <span class="name">International Multi-Audio</span>
-                    <span class="meta">VidSrc.su • Spanish / French / German</span>
-                  </div>
-                  ${this.currentServerId === 'vidsrc-su' ? '<span class="check-icon">✓</span>' : ''}
                 </button>
                 <button class="audio-opt-btn ${this.currentServerId === 'vidsrc-pm' ? 'active' : ''}" data-server-id="vidsrc-pm">
                   <span class="flag">⚡</span>
                   <div class="audio-info">
-                    <span class="name">Ultra Fast English Mirror</span>
-                    <span class="meta">VidSrc.pm • High Bitrate</span>
+                    <span class="name">VidSrc.pm (Ultra Fast)</span>
+                    <span class="meta">High Bitrate • Low Buffer Mirror</span>
                   </div>
                   ${this.currentServerId === 'vidsrc-pm' ? '<span class="check-icon">✓</span>' : ''}
+                </button>
+                <button class="audio-opt-btn ${this.currentServerId === 'vidsrc-su' ? 'active' : ''}" data-server-id="vidsrc-su">
+                  <span class="flag">🌐</span>
+                  <div class="audio-info">
+                    <span class="name">VidSrc.su (Active HD)</span>
+                    <span class="meta">Alternative High-Quality Mirror</span>
+                  </div>
+                  ${this.currentServerId === 'vidsrc-su' ? '<span class="check-icon">✓</span>' : ''}
+                </button>
+                <button class="audio-opt-btn ${this.currentServerId === 'vidsrc-to' ? 'active' : ''}" data-server-id="vidsrc-to">
+                  <span class="flag">🎬</span>
+                  <div class="audio-info">
+                    <span class="name">VidSrc.to (Mirror 1)</span>
+                    <span class="meta">Multi-CDN Backup Stream</span>
+                  </div>
+                  ${this.currentServerId === 'vidsrc-to' ? '<span class="check-icon">✓</span>' : ''}
                 </button>
               </div>
             </div>
@@ -302,7 +302,7 @@ export class StreamingPlayer {
               </div>
               <div class="subtitles-help-tip">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                <span><strong>In-Player CC Toggle:</strong> You can also hover over the video and click the <strong>[CC]</strong> icon at the bottom-right corner inside the video player to select from 20+ subtitle languages.</span>
+                <span><strong>How to Switch Subtitles:</strong> Hover over the video stream and click the <strong>[CC]</strong> icon at the bottom-right corner (next to the gear icon) to select from 30+ languages (English, Hindi, Spanish, French, German, Arabic, Italian, etc.).</span>
               </div>
             </div>
           </div>
@@ -793,22 +793,27 @@ export class StreamingPlayer {
     chips.forEach(chip => {
       chip.addEventListener('click', () => {
         const rawUrl = chip.dataset.subUrl;
-        const label = chip.dataset.subLabel || 'Subtitles';
+        const label = chip.dataset.subLabel || chip.textContent.trim();
+
+        chips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
 
         if (!rawUrl) {
-          // Off
           this.selectedSubtitleUrl = null;
           this.selectedSubtitleLabel = 'Off';
-          this.render();
-          this.showToast('Subtitles turned off');
+          this.showToast('Subtitles Off: Tap [CC] inside player controls to turn off');
           return;
         }
 
-        const vttUrl = `${window.location.origin}/api/subtitles?url=${encodeURIComponent(rawUrl)}`;
-        this.selectedSubtitleUrl = vttUrl;
         this.selectedSubtitleLabel = label;
-        this.render();
-        this.showToast(`Loaded ${label} Subtitles`);
+        this.showToast(`💬 To view ${label} captions, hover over the video and click the [CC] icon at the bottom-right!`);
+
+        // If on production public URL, we can also pass the external subtitle parameter
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          const vttUrl = `${window.location.origin}/api/subtitles?url=${encodeURIComponent(rawUrl)}`;
+          this.selectedSubtitleUrl = vttUrl;
+          this.updateStreamUrl();
+        }
       });
     });
   }

@@ -308,14 +308,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Text('🇮🇳', style: TextStyle(fontSize: 24)),
-                  title: const Text('Hindi Dubbed & Multi-Audio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('SuperEmbed • Multi-Language Dubs', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                  trailing: _selectedServer.id == 'superembed'
+                  leading: const Text('⚡', style: TextStyle(fontSize: 24)),
+                  title: const Text('VidSrc.pm (Ultra Fast)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Fast High-Speed CDN Mirror', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  trailing: _selectedServer.id == 'vidsrc-pm'
                       ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
                       : null,
                   onTap: () {
-                    final srv = streamServers.firstWhere((s) => s.id == 'superembed', orElse: () => streamServers[0]);
+                    final srv = streamServers.firstWhere((s) => s.id == 'vidsrc-pm', orElse: () => streamServers[0]);
                     Navigator.pop(ctx);
                     _switchServer(srv);
                   },
@@ -323,8 +323,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Text('🌐', style: TextStyle(fontSize: 24)),
-                  title: const Text('International Multi-Audio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('VidSrc.su • Spanish, French & German tracks', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  title: const Text('VidSrc.su (Active HD)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Alternative High-Resolution Stream', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                   trailing: _selectedServer.id == 'vidsrc-su'
                       ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
                       : null,
