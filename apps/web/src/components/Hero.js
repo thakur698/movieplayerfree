@@ -36,6 +36,21 @@ export class HeroBanner {
     const backdropUrl = tmdbApi.getBackdropUrl(item.backdrop_path, 'original');
     const inWatchlist = Storage.isInWatchlist(item.id, mediaType);
 
+const GENRE_MAP = {
+  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+  99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
+  27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi',
+  10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western',
+  10759: 'Action & Adventure', 10762: 'Kids', 10764: 'Reality',
+  10765: 'Sci-Fi & Fantasy'
+};
+
+    const genreNames = (item.genre_ids || [])
+      .map(id => GENRE_MAP[id])
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(' • ');
+
     this.containerEl.innerHTML = `
       <div class="hero-banner" style="background-image: url('${backdropUrl}')">
         <div class="hero-vignette-overlay"></div>
@@ -48,10 +63,11 @@ export class HeroBanner {
             <span class="badge badge-match">${matchPercent}% Match</span>
             ${year ? `<span class="badge badge-year">${year}</span>` : ''}
             <span class="badge badge-rating">${Icons.star} ${rating}</span>
-            <span class="badge badge-quality">4K UHD • DOLBY ATMOS</span>
+            <span class="badge badge-quality">4K UHD • DOLBY</span>
           </div>
 
           <h1 class="hero-main-title">${title}</h1>
+          ${genreNames ? `<div class="hero-genres-row">${genreNames}</div>` : ''}
           <p class="hero-synopsis">${item.overview}</p>
 
           <div class="hero-actions-group">
@@ -61,8 +77,9 @@ export class HeroBanner {
             <button class="btn btn-glass btn-lg" id="hero-info-btn">
               ${Icons.info} <span>Details & Trailer</span>
             </button>
-            <button class="btn btn-icon btn-glass btn-lg ${inWatchlist ? 'is-active' : ''}" id="hero-watchlist-btn" title="Add to Watchlist">
+            <button class="btn btn-glass btn-lg hero-watchlist-btn ${inWatchlist ? 'is-active' : ''}" id="hero-watchlist-btn" title="${inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}">
               ${inWatchlist ? Icons.check : Icons.plus}
+              <span class="btn-text">${inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
             </button>
           </div>
         </div>
@@ -101,10 +118,10 @@ export class HeroBanner {
         const res = Storage.toggleWatchlist({ ...item, media_type: mediaType });
         if (res.added) {
           watchlistBtn.classList.add('is-active');
-          watchlistBtn.innerHTML = Icons.check;
+          watchlistBtn.innerHTML = `${Icons.check} <span class="btn-text">In Watchlist</span>`;
         } else {
           watchlistBtn.classList.remove('is-active');
-          watchlistBtn.innerHTML = Icons.plus;
+          watchlistBtn.innerHTML = `${Icons.plus} <span class="btn-text">Add to Watchlist</span>`;
         }
       });
     }
