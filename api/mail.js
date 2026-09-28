@@ -12,8 +12,8 @@ const MAILOFLY_API_KEY = process.env.MAILOFLY_API_KEY || 'mf_live_xZGIuU6Ahv8btX
 const MAILOFLY_BASE_URL = 'https://api.mailofly.com/v1';
 const SENDER_EMAIL = 'therealthakur.10@gmail.com';
 
-// Local schedule store path
-const DATA_DIR = path.join(__dirname, 'data');
+// Local schedule store path (uses /tmp on Vercel Serverless environment)
+const DATA_DIR = process.env.VERCEL ? '/tmp/cinestream-data' : path.join(__dirname, 'data');
 const SCHEDULE_FILE = path.join(DATA_DIR, 'schedules.json');
 
 // Ensure data directory exists
@@ -52,73 +52,62 @@ function saveSchedules(schedules) {
   }
 }
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import https from 'node:https';
+import dns from 'node:dns';
 
-const execFileAsync = promisify(execFile);
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
-// Mailofly API request helper: uses fast native curl when available, with fetch fallback
-async function mailoflyRequest(endpoint, body = null, method = 'POST', timeoutMs = 25000) {
-  const url = `${MAILOFLY_BASE_URL}${endpoint}`;
+// Mailofly API request helper: uses native node:https with forced IPv4 (bypasses serverless IPv6 routing stalls)
+function mailoflyRequest(endpoint, body = null, method = 'POST', timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    const dataString = body ? JSON.stringify(body) : null;
+    const req = https.request({
+      hostname: 'api.mailofly.com',
+      port: 443,
+      path: '/v1' + endpoint,
+      method: method,
+      family: 4, // Explicitly force IPv4 to avoid serverless IPv6 routing stalls
+      headers: {
+        'Authorization': `Bearer ${MAILOFLY_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'CineStream-App/1.0',
+        ...(dataString ? { 'Content-Length': Buffer.byteLength(dataString) } : {})
+      },
+      timeout: timeoutMs
+    }, (res) => {
+      let chunks = '';
+      res.on('data', chunk => chunks += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = chunks ? JSON.parse(chunks) : {};
+          if (res.statusCode >= 400 || parsed.error) {
+            reject(new Error(`[Mailofly ${res.statusCode}] ${parsed.message || parsed.error || res.statusMessage}`));
+          } else {
+            resolve(parsed);
+          }
+        } catch (e) {
+          reject(new Error(`[Mailofly ${res.statusCode}] Invalid response: ${chunks.substring(0, 150)}`));
+        }
+      });
+    });
 
-  // 1. Ultra-fast native curl transport (completes in 3-5s without TLS renegotiation stalls)
-  try {
-    const args = [
-      '-s',
-      '--max-time', String(Math.round(timeoutMs / 1000)),
-      '-X', method,
-      url,
-      '-H', `Authorization: Bearer ${MAILOFLY_API_KEY}`,
-      '-H', 'Content-Type: application/json',
-      '-H', 'Accept: application/json'
-    ];
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error(`Mailofly API request timed out after ${timeoutMs}ms`));
+    });
 
-    if (body) {
-      args.push('-d', JSON.stringify(body));
+    req.on('error', (err) => {
+      reject(err);
+    });
+
+    if (dataString) {
+      req.write(dataString);
     }
-
-    const curlBin = process.platform === 'win32' ? 'curl.exe' : 'curl';
-    const { stdout } = await execFileAsync(curlBin, args);
-    if (stdout) {
-      const data = JSON.parse(stdout);
-      if (data.error) {
-        throw new Error(`[Mailofly] ${data.message || data.error}`);
-      }
-      return data;
-    }
-  } catch (curlErr) {
-    // If curl threw a known Mailofly API error, re-throw it
-    if (curlErr.message && curlErr.message.startsWith('[Mailofly]')) {
-      throw curlErr;
-    }
-    // Otherwise fallback to global fetch
-  }
-
-  // 2. Fetch fallback
-  const options = {
-    method,
-    headers: {
-      'Authorization': `Bearer ${MAILOFLY_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'CineStream-App/1.0'
-    },
-    signal: AbortSignal.timeout(timeoutMs)
-  };
-
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
-
-  const res = await fetch(url, options);
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    const errorMsg = data.message || data.error || res.statusText || 'Mailofly request failed';
-    throw new Error(`[Mailofly ${res.status}] ${errorMsg}`);
-  }
-
-  return data;
+    req.end();
+  });
 }
 
 // Cancel a scheduled email by ID
@@ -134,7 +123,7 @@ export async function cancelEmail(emailId) {
 }
 
 // Email HTML Layout wrapper
-function buildEmailHtml({ title, preheader, headline, bodyContent, ctaText = 'Start Watching Now', ctaUrl = 'http://localhost:5173/' }) {
+function buildEmailHtml({ title, preheader, headline, bodyContent, ctaText = 'Start Watching Now', ctaUrl = 'https://movieplayerfree.vercel.app/' }) {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -269,13 +258,15 @@ export async function sendWelcomeEmail({ to, name = '', isNewUser = false }) {
     </p>
   `;
 
+  const liveUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://movieplayerfree.vercel.app';
+
   const html = buildEmailHtml({
     title: `Welcome to CineStream, ${safeName}!`,
     preheader: `Your VIP pass to unlimited cinema streaming is ready.`,
     headline,
     bodyContent,
     ctaText: 'Start Streaming Now',
-    ctaUrl: 'http://localhost:5173/'
+    ctaUrl: liveUrl
   });
 
   return mailoflyRequest('/emails', {
@@ -283,7 +274,7 @@ export async function sendWelcomeEmail({ to, name = '', isNewUser = false }) {
     from: SENDER_EMAIL,
     subject: `🍿 Welcome to CineStream, ${safeName}! Your VIP Cinema Pass`,
     html,
-    text: `Welcome to CineStream, ${safeName}! Your account is active. Start watching your favorite movies and web series now at http://localhost:5173/`
+    text: `Welcome to CineStream, ${safeName}! Your account is active. Start watching your favorite movies and web series now at ${liveUrl}`
   });
 }
 

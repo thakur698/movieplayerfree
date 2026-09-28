@@ -97,13 +97,15 @@ class CineStreamApp {
     });
 
     // 4. Track logged-in user and dispatch welcome email on new device session
-    AuthService.onAuthChange((user) => {
+    AuthService.onAuthChange(async (user) => {
       if (user) {
         const sessionKey = `cs_welcome_ack_${user.uid}`;
         if (!sessionStorage.getItem(sessionKey)) {
-          sessionStorage.setItem(sessionKey, '1');
           console.log('[CineStream] Detected login on this device for:', user.email);
-          EmailService.notifyUserLogin(user, false);
+          const res = await EmailService.notifyUserLogin(user, false);
+          if (res && res.success) {
+            sessionStorage.setItem(sessionKey, '1');
+          }
         } else {
           EmailService.recordUserActivity(user);
         }

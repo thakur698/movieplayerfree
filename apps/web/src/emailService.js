@@ -20,14 +20,17 @@ export const EmailService = {
         })
       });
 
-      const data = await response.json();
-      console.log('[EmailService] Welcome email and 2-day inactivity sequence initialized:', data);
-      
-      // Mark current session as active
-      sessionStorage.setItem('cs_last_activity_ping', Date.now().toString());
-      return data;
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.success) {
+        console.log('[EmailService] Welcome email dispatched successfully:', data);
+        sessionStorage.setItem('cs_last_activity_ping', Date.now().toString());
+        return data;
+      } else {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
     } catch (err) {
-      console.warn('[EmailService] Could not send welcome notification:', err);
+      console.warn('[EmailService] Could not send welcome notification:', err.message);
+      return null;
     }
   },
 
