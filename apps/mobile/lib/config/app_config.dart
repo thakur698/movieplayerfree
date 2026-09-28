@@ -47,13 +47,12 @@ class StreamServer {
 
 final List<StreamServer> streamServers = [
   StreamServer(
-    id: 'direct-hls',
-    name: 'Direct Player',
+    id: 'vidlink',
+    name: 'VidLink (Ad-Free HD)',
     badge: '0 Ads • 1080p',
-    getMovieUrl: (tmdbId, [imdbId]) =>
-        'https://movieplayerfree.vercel.app/api/stream?tmdbId=$tmdbId&type=movie${imdbId != null && imdbId.isNotEmpty ? '&imdbId=$imdbId' : ''}',
+    getMovieUrl: (tmdbId, [imdbId]) => 'https://vidlink.pro/movie/$tmdbId',
     getTvUrl: (tmdbId, imdbId, season, episode) =>
-        'https://movieplayerfree.vercel.app/api/stream?tmdbId=$tmdbId&type=tv&season=$season&episode=$episode${imdbId != null && imdbId.isNotEmpty ? '&imdbId=$imdbId' : ''}',
+        'https://vidlink.pro/tv/$tmdbId/$season/$episode',
   ),
   StreamServer(
     id: 'vidsrc-pm',
@@ -64,20 +63,21 @@ final List<StreamServer> streamServers = [
         'https://vidsrc.pm/embed/tv?tmdb=$tmdbId&season=$season&episode=$episode',
   ),
   StreamServer(
-    id: 'vidlink',
-    name: 'VidLink (Ad-Free HD)',
-    badge: 'Cleanest Stream',
-    getMovieUrl: (tmdbId, [imdbId]) => 'https://vidlink.pro/movie/$tmdbId',
-    getTvUrl: (tmdbId, imdbId, season, episode) =>
-        'https://vidlink.pro/tv/$tmdbId/$season/$episode',
-  ),
-  StreamServer(
     id: 'vidsrc-su',
     name: 'VidSrc.su',
     badge: 'Active HD',
     getMovieUrl: (tmdbId, [imdbId]) => 'https://vidsrc.su/embed/movie/$tmdbId',
     getTvUrl: (tmdbId, imdbId, season, episode) =>
         'https://vidsrc.su/embed/tv/$tmdbId/$season/$episode',
+  ),
+  StreamServer(
+    id: 'direct-hls',
+    name: 'Direct Player (Beta)',
+    badge: 'HLS Direct',
+    getMovieUrl: (tmdbId, [imdbId]) =>
+        'https://movieplayerfree.vercel.app/api/stream?tmdbId=$tmdbId&type=movie${imdbId != null && imdbId.isNotEmpty ? '&imdbId=$imdbId' : ''}',
+    getTvUrl: (tmdbId, imdbId, season, episode) =>
+        'https://movieplayerfree.vercel.app/api/stream?tmdbId=$tmdbId&type=tv&season=$season&episode=$episode${imdbId != null && imdbId.isNotEmpty ? '&imdbId=$imdbId' : ''}',
   ),
   StreamServer(
     id: 'vidsrc-cc',

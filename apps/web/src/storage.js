@@ -98,7 +98,9 @@ export const Storage = {
 
   // Server preference
   getSelectedServer() {
-    return localStorage.getItem(KEYS.SELECTED_SERVER) || 'vidsrc-pm';
+    const srv = localStorage.getItem(KEYS.SELECTED_SERVER);
+    if (!srv || srv === 'direct-hls') return 'vidlink';
+    return srv;
   },
 
   setSelectedServer(serverId) {

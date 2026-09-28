@@ -9,7 +9,7 @@ export class StreamingPlayer {
     this.containerEl = containerEl;
     this.onBack = onBackCallback;
     this.currentMedia = null;
-    this.currentServerId = Storage.getSelectedServer() || 'direct-hls';
+    this.currentServerId = Storage.getSelectedServer() || 'vidlink';
     this.currentSeason = 1;
     this.currentEpisode = 1;
     this.seasonsData = [];
@@ -26,7 +26,7 @@ export class StreamingPlayer {
     this.currentMedia = media;
     this.currentSeason = Number(season) || 1;
     this.currentEpisode = Number(episode) || 1;
-    this.currentServerId = Storage.getSelectedServer() || 'direct-hls';
+    this.currentServerId = Storage.getSelectedServer() || 'vidlink';
     this.directStreamUrl = null;
     this.subtitles = [];
     this.isResolvingDirect = false;
@@ -341,6 +341,10 @@ export class StreamingPlayer {
 
     this.bindEvents();
 
+    if (isTv) {
+      this.loadSeasonEpisodes(this.currentSeason);
+    }
+
     if (this.directStreamUrl) {
       this.attachHls(this.directStreamUrl);
     }
@@ -353,6 +357,31 @@ export class StreamingPlayer {
     if (this.subtitles && this.subtitles.length) {
       this.attachSubtitles(video, this.subtitles);
     }
+
+    let retryCount = 0;
+    const fallbackToVidLink = (reason) => {
+      console.warn(`[DirectPlayer] ${reason} - Falling back to VidLink (Clean Ad-Free HD)`);
+      if (this.hlsInstance) {
+        this.hlsInstance.destroy();
+        this.hlsInstance = null;
+      }
+      this.directStreamUrl = null;
+      this.currentServerId = 'vidlink';
+      Storage.setSelectedServer('vidlink');
+      this.render();
+      this.showToast('Switched to VidLink (Clean Ad-Free HD)');
+    };
+
+    // Stalled watchdog: if video is paused at 0s and doesn't progress within 6s
+    const watchdogTimer = setTimeout(() => {
+      if (video.currentTime === 0 && !video.ended && this.currentServerId === 'direct-hls') {
+        fallbackToVidLink('Stream playback stalled');
+      }
+    }, 6000);
+
+    video.addEventListener('timeupdate', () => {
+      if (video.currentTime > 0) clearTimeout(watchdogTimer);
+    }, { once: true });
 
     if (Hls.isSupported()) {
       if (this.hlsInstance) {
@@ -372,8 +401,14 @@ export class StreamingPlayer {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.warn('Network error, attempting recovery...');
-              this.hlsInstance.startLoad();
+              retryCount++;
+              if (retryCount > 2) {
+                clearTimeout(watchdogTimer);
+                fallbackToVidLink('Network error (upstream CDN cross-origin blocked)');
+              } else {
+                console.warn('Network error, attempting recovery...');
+                this.hlsInstance.startLoad();
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               console.warn('Media error, attempting recovery...');
@@ -381,7 +416,8 @@ export class StreamingPlayer {
               break;
             default:
               console.error('Fatal HLS error:', data);
-              this.hlsInstance.destroy();
+              clearTimeout(watchdogTimer);
+              fallbackToVidLink('Fatal HLS decoding error');
               break;
           }
         }
@@ -390,6 +426,10 @@ export class StreamingPlayer {
       video.src = m3u8Url;
       video.addEventListener('loadedmetadata', () => {
         video.play().catch(e => console.log('Autoplay prevented:', e));
+      });
+      video.addEventListener('error', () => {
+        clearTimeout(watchdogTimer);
+        fallbackToVidLink('Native video playback error');
       });
     }
   }
