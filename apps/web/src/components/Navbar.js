@@ -1,18 +1,30 @@
 import { Icons } from '../icons.js';
 import { tmdbApi } from '../api.js';
 import { Storage } from '../storage.js';
+import { AuthService } from '../firebase.js';
 
 export class Navbar {
-  constructor(containerEl, { onNavigate, onSearch, onOpenDetails, onOpenSettings, onSurpriseMe }) {
+  constructor(containerEl, { onNavigate, onSearch, onOpenDetails, onOpenSettings, onSurpriseMe, onOpenAuth }) {
     this.containerEl = containerEl;
     this.onNavigate = onNavigate;
     this.onSearch = onSearch;
     this.onOpenDetails = onOpenDetails;
     this.onOpenSettings = onOpenSettings;
     this.onSurpriseMe = onSurpriseMe;
+    this.onOpenAuth = onOpenAuth;
+    this.currentUser = null;
+    this.dropdownOpen = false;
     this.activeRoute = 'home';
     this.debounceTimer = null;
     this.render();
+    this.initAuth();
+  }
+
+  initAuth() {
+    AuthService.onAuthChange((user) => {
+      this.currentUser = user;
+      this.updateAuthUI();
+    });
   }
 
   setRoute(route) {
@@ -59,6 +71,9 @@ export class Navbar {
             <button class="nav-link mobile-only-link" id="mobile-settings-btn">
               ${Icons.settings} <span>Settings & Servers</span>
             </button>
+            <button class="nav-link mobile-only-link" id="mobile-auth-btn">
+              ${Icons.user} <span id="mobile-auth-label">Sign In</span>
+            </button>
           </nav>
         </div>
 
@@ -91,6 +106,9 @@ export class Navbar {
             ${Icons.settings}
           </button>
 
+          <!-- User Profile / Auth Slot -->
+          <div class="nav-auth-slot" id="nav-auth-slot"></div>
+
           <!-- Mobile Menu Toggle -->
           <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
             <span></span>
@@ -103,6 +121,7 @@ export class Navbar {
 
     this.bindEvents();
     this.updateWatchlistBadge();
+    this.updateAuthUI();
   }
 
   bindEvents() {
@@ -185,13 +204,38 @@ export class Navbar {
       });
     }
 
-    // Close mobile menu when clicking outside
+    // Close mobile menu or user dropdown when clicking outside
     document.addEventListener('click', (e) => {
       if (menu && !menu.contains(e.target) && !toggle?.contains(e.target)) {
         menu.classList.remove('mobile-open');
         toggle?.classList.remove('is-active');
       }
+
+      const wrapper = this.containerEl.querySelector('#user-profile-menu-wrapper');
+      const dropdown = this.containerEl.querySelector('#user-dropdown-card');
+      if (wrapper && dropdown && !wrapper.contains(e.target)) {
+        this.dropdownOpen = false;
+        dropdown.style.display = 'none';
+      }
     });
+
+    // Mobile auth button
+    const mobileAuthBtn = this.containerEl.querySelector('#mobile-auth-btn');
+    if (mobileAuthBtn) {
+      mobileAuthBtn.addEventListener('click', async () => {
+        menu.classList.remove('mobile-open');
+        toggle?.classList.remove('is-active');
+        if (this.currentUser) {
+          try {
+            await AuthService.logout();
+          } catch (e) {
+            console.error('Logout failed:', e);
+          }
+        } else {
+          if (this.onOpenAuth) this.onOpenAuth('signin');
+        }
+      });
+    }
 
     // Search input handling
     const searchInput = this.containerEl.querySelector('#global-search-input');
@@ -311,4 +355,104 @@ export class Navbar {
       dropdown.innerHTML = `<div class="dropdown-empty">Search temporarily unavailable</div>`;
     }
   }
+
+  updateAuthUI() {
+    const slot = this.containerEl.querySelector('#nav-auth-slot');
+    const mobileAuthLabel = this.containerEl.querySelector('#mobile-auth-label');
+
+    if (this.currentUser) {
+      const initial = (this.currentUser.displayName || this.currentUser.email || 'U')[0].toUpperCase();
+      const displayName = this.currentUser.displayName || this.currentUser.email?.split('@')[0] || 'User';
+
+      if (slot) {
+        slot.innerHTML = `
+          <div class="user-profile-menu-wrapper" id="user-profile-menu-wrapper">
+            <button class="user-avatar-btn" id="user-avatar-btn" title="${this.currentUser.email || 'Account'}">
+              ${this.currentUser.photoURL ? `<img src="${this.currentUser.photoURL}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />` : initial}
+            </button>
+            <div class="user-dropdown-card" id="user-dropdown-card" style="display: ${this.dropdownOpen ? 'block' : 'none'};">
+              <div class="user-dropdown-header">
+                <div class="user-dropdown-name">${displayName}</div>
+                <div class="user-dropdown-email">${this.currentUser.email || ''}</div>
+              </div>
+              <button class="user-dropdown-item" id="user-dropdown-watchlist">
+                ${Icons.bookmark} My Watchlist
+              </button>
+              <button class="user-dropdown-item logout-item" id="user-dropdown-logout">
+                ${Icons.close} Sign Out
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      if (mobileAuthLabel) {
+        mobileAuthLabel.textContent = `Sign Out (${displayName})`;
+      }
+    } else {
+      if (slot) {
+        slot.innerHTML = `
+          <button class="btn btn-primary nav-auth-btn" id="nav-signin-btn" title="Sign In or Create Account">
+            ${Icons.user} <span>Sign In</span>
+          </button>
+        `;
+      }
+
+      if (mobileAuthLabel) {
+        mobileAuthLabel.textContent = 'Sign In';
+      }
+    }
+
+    this.bindAuthEvents();
+  }
+
+  bindAuthEvents() {
+    const slot = this.containerEl.querySelector('#nav-auth-slot');
+    if (!slot) return;
+
+    // Desktop Sign In
+    const signinBtn = slot.querySelector('#nav-signin-btn');
+    if (signinBtn) {
+      signinBtn.addEventListener('click', () => {
+        if (this.onOpenAuth) this.onOpenAuth('signin');
+      });
+    }
+
+    // Avatar button toggle
+    const avatarBtn = slot.querySelector('#user-avatar-btn');
+    const dropdown = slot.querySelector('#user-dropdown-card');
+    if (avatarBtn && dropdown) {
+      avatarBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.dropdownOpen = !this.dropdownOpen;
+        dropdown.style.display = this.dropdownOpen ? 'block' : 'none';
+      });
+    }
+
+    // Dropdown watchlist
+    const watchlistBtn = slot.querySelector('#user-dropdown-watchlist');
+    if (watchlistBtn) {
+      watchlistBtn.addEventListener('click', () => {
+        this.dropdownOpen = false;
+        if (dropdown) dropdown.style.display = 'none';
+        this.setRoute('watchlist');
+        if (this.onNavigate) this.onNavigate('watchlist');
+      });
+    }
+
+    // Dropdown sign out
+    const logoutBtn = slot.querySelector('#user-dropdown-logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        this.dropdownOpen = false;
+        if (dropdown) dropdown.style.display = 'none';
+        try {
+          await AuthService.logout();
+        } catch (e) {
+          console.error('Logout error:', e);
+        }
+      });
+    }
+  }
 }
+

@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { resolveStream } from './api/stream-resolver.js';
 import subtitlesHandler from './api/subtitles.js';
+import mailHandler from './api/mail.js';
 
 function streamApiPlugin() {
   return {
@@ -10,6 +11,9 @@ function streamApiPlugin() {
       server.middlewares.use(async (req, res, next) => {
         if (req.url && req.url.startsWith('/api/subtitles')) {
           return subtitlesHandler(req, res);
+        }
+        if (req.url && req.url.startsWith('/api/mail')) {
+          return mailHandler(req, res);
         }
         if (!req.url || !req.url.startsWith('/api/stream')) {
           return next();

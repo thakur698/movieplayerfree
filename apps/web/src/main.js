@@ -8,6 +8,9 @@ import { SearchView } from './views/SearchView.js';
 import { DetailsModal } from './details.js';
 import { StreamingPlayer } from './player.js';
 import { SettingsModal } from './components/SettingsModal.js';
+import { AuthModal } from './components/AuthModal.js';
+import { EmailService } from './emailService.js';
+import { AuthService } from './firebase.js';
 import { Icons } from './icons.js';
 import { tmdbApi } from './api.js';
 
@@ -38,6 +41,11 @@ class CineStreamApp {
       () => this.handleSettingsUpdated()
     );
 
+    this.authModal = new AuthModal(
+      this.modalEl,
+      (user, isNewUser) => this.handleAuthSuccess(user, isNewUser)
+    );
+
     this.init();
   }
 
@@ -48,7 +56,8 @@ class CineStreamApp {
       onSearch: (query) => this.handleSearch(query),
       onOpenDetails: (type, id) => this.openDetails(type, id),
       onOpenSettings: () => this.settingsModal.open(),
-      onSurpriseMe: () => this.handleSurpriseMe()
+      onSurpriseMe: () => this.handleSurpriseMe(),
+      onOpenAuth: (mode) => this.authModal.open(mode)
     });
 
     // 2. Render Footer
@@ -73,15 +82,46 @@ class CineStreamApp {
       this.settingsModal.open();
     });
 
-    // Keyboard shortcut Escape closes details modal
+    document.addEventListener('open-auth', (e) => {
+      const mode = e.detail?.mode || 'signin';
+      this.authModal.open(mode);
+    });
+
+    // Keyboard shortcut Escape closes modals
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.detailsModal.close();
+        this.settingsModal.close();
+        this.authModal.close();
       }
     });
 
-    // 4. Initial route load
+    // 4. Track logged-in user and dispatch welcome email on new device session
+    AuthService.onAuthChange((user) => {
+      if (user) {
+        const sessionKey = `cs_welcome_ack_${user.uid}`;
+        if (!sessionStorage.getItem(sessionKey)) {
+          sessionStorage.setItem(sessionKey, '1');
+          console.log('[CineStream] Detected login on this device for:', user.email);
+          EmailService.notifyUserLogin(user, false);
+        } else {
+          EmailService.recordUserActivity(user);
+        }
+      }
+    });
+
+    // 5. Initial route load
     this.navigate('home');
+  }
+
+  async handleAuthSuccess(user, isNewUser = false) {
+    console.log('[CineStream] User authenticated from modal:', user.email, 'isNewUser:', isNewUser);
+    if (user && user.uid) {
+      sessionStorage.setItem(`cs_welcome_ack_${user.uid}`, '1');
+    }
+    this.navbar.updateWatchlistBadge();
+    // Dispatch welcome email and schedule rotating 2-day inactivity reminders
+    await EmailService.notifyUserLogin(user, isNewUser);
   }
 
   async handleSurpriseMe() {
