@@ -11,6 +11,7 @@ import { SettingsModal } from './components/SettingsModal.js';
 import { AuthModal } from './components/AuthModal.js';
 import { EmailService } from './emailService.js';
 import { AuthService } from './firebase.js';
+import { SyncService } from './syncService.js';
 import { Icons } from './icons.js';
 import { tmdbApi } from './api.js';
 
@@ -76,6 +77,21 @@ class CineStreamApp {
 
     document.addEventListener('watchlist-updated', () => {
       this.navbar.updateWatchlistBadge();
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser) SyncService.schedulePush(currentUser);
+    });
+
+    document.addEventListener('continue-watching-updated', () => {
+      if (this.currentRoute === 'home' && this.currentView?.renderContinueWatching) {
+        this.currentView.renderContinueWatching();
+      }
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser) SyncService.schedulePush(currentUser);
+    });
+
+    document.addEventListener('settings-updated', () => {
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser) SyncService.schedulePush(currentUser);
     });
 
     document.addEventListener('open-settings', () => {
@@ -96,9 +112,12 @@ class CineStreamApp {
       }
     });
 
-    // 4. Track logged-in user and dispatch welcome email on new device session
+    // 4. Track logged-in user: sync Watchlist & History, dispatch welcome email on new device session
     AuthService.onAuthChange(async (user) => {
       if (user) {
+        // Synchronize cloud watchlist & continue watching across devices
+        await SyncService.syncOnLogin(user);
+
         const sessionKey = `cs_welcome_ack_${user.uid}`;
         if (!sessionStorage.getItem(sessionKey)) {
           console.log('[CineStream] Detected login on this device for:', user.email);
@@ -120,6 +139,7 @@ class CineStreamApp {
     console.log('[CineStream] User authenticated from modal:', user.email, 'isNewUser:', isNewUser);
     if (user && user.uid) {
       sessionStorage.setItem(`cs_welcome_ack_${user.uid}`, '1');
+      await SyncService.syncOnLogin(user);
     }
     this.navbar.updateWatchlistBadge();
     // Dispatch welcome email and schedule rotating 2-day inactivity reminders

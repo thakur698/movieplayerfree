@@ -29,11 +29,12 @@ export const Storage = {
     let list = this.getWatchlist();
     const mediaType = item.media_type || (item.first_air_date ? 'tv' : 'movie');
     const index = list.findIndex(i => String(i.id) === String(item.id) && i.media_type === mediaType);
+    let result;
 
     if (index >= 0) {
       list.splice(index, 1);
       localStorage.setItem(KEYS.WATCHLIST, JSON.stringify(list));
-      return { added: false, item };
+      result = { added: false, item };
     } else {
       const newItem = {
         id: item.id,
@@ -48,8 +49,13 @@ export const Storage = {
       };
       list.unshift(newItem);
       localStorage.setItem(KEYS.WATCHLIST, JSON.stringify(list));
-      return { added: true, item: newItem };
+      result = { added: true, item: newItem };
     }
+
+    if (typeof document !== 'undefined') {
+      document.dispatchEvent(new CustomEvent('watchlist-updated', { bubbles: true, detail: result }));
+    }
+    return result;
   },
 
   // Continue Watching methods
@@ -83,12 +89,20 @@ export const Storage = {
     // Keep max 20 entries
     if (list.length > 20) list.pop();
     localStorage.setItem(KEYS.CONTINUE_WATCHING, JSON.stringify(list));
+
+    if (typeof document !== 'undefined') {
+      document.dispatchEvent(new CustomEvent('continue-watching-updated', { bubbles: true, detail: entry }));
+    }
   },
 
   removeProgress(id, media_type) {
     let list = this.getContinueWatching();
     list = list.filter(item => !(String(item.id) === String(id) && item.media_type === media_type));
     localStorage.setItem(KEYS.CONTINUE_WATCHING, JSON.stringify(list));
+
+    if (typeof document !== 'undefined') {
+      document.dispatchEvent(new CustomEvent('continue-watching-updated', { bubbles: true, detail: { id, media_type, removed: true } }));
+    }
   },
 
   getProgress(id, media_type) {
@@ -105,6 +119,9 @@ export const Storage = {
 
   setSelectedServer(serverId) {
     localStorage.setItem(KEYS.SELECTED_SERVER, serverId);
+    if (typeof document !== 'undefined') {
+      document.dispatchEvent(new CustomEvent('settings-updated', { bubbles: true, detail: { selectedServer: serverId } }));
+    }
   },
 
   // Ad Shield preference (defaults to true for maximum ad & popup blocking)
@@ -115,6 +132,9 @@ export const Storage = {
 
   setAdShieldEnabled(enabled) {
     localStorage.setItem(KEYS.AD_SHIELD, String(enabled));
+    if (typeof document !== 'undefined') {
+      document.dispatchEvent(new CustomEvent('settings-updated', { bubbles: true, detail: { adShield: enabled } }));
+    }
   },
 
   // Custom API key override

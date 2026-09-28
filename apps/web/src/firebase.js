@@ -9,6 +9,7 @@ import {
   signInWithPopup,
   updateProfile
 } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 
 export const firebaseConfig = {
   projectId: "cinestream-app-2026",
@@ -22,6 +23,7 @@ export const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export const AuthService = {
