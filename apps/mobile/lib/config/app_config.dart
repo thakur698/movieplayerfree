@@ -105,4 +105,13 @@ final List<StreamServer> streamServers = [
     getTvUrl: (tmdbId, imdbId, season, episode) =>
         'https://www.2embed.cc/embedtv/$tmdbId&s=$season&e=$episode',
   ),
+  StreamServer(
+    id: 'superembed',
+    name: 'SuperEmbed',
+    badge: 'Multi-Audio Dubs',
+    getMovieUrl: (tmdbId, [imdbId]) =>
+        'https://multiembed.mov/?video_id=${imdbId != null && imdbId.isNotEmpty ? imdbId : tmdbId}&tmdb=${imdbId != null && imdbId.isNotEmpty ? '0' : '1'}',
+    getTvUrl: (tmdbId, imdbId, season, episode) =>
+        'https://multiembed.mov/?video_id=${imdbId != null && imdbId.isNotEmpty ? imdbId : tmdbId}&tmdb=${imdbId != null && imdbId.isNotEmpty ? '0' : '1'}&s=$season&e=$episode',
+  ),
 ];

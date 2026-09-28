@@ -247,6 +247,122 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _saveProgress();
   }
 
+  void _showLanguageModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surfaceCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.translate_rounded, color: AppColors.primary, size: 24),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Audio Language & Subtitles',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'AUDIO TRACKS & DUBBED SERVERS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.0,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Text('🇺🇸', style: TextStyle(fontSize: 24)),
+                  title: const Text('English (Original HD)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('VidLink • 0 Ads • 1080p Stream', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  trailing: _selectedServer.id == 'vidlink'
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                      : null,
+                  onTap: () {
+                    final srv = streamServers.firstWhere((s) => s.id == 'vidlink', orElse: () => streamServers[0]);
+                    Navigator.pop(ctx);
+                    _switchServer(srv);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Text('🇮🇳', style: TextStyle(fontSize: 24)),
+                  title: const Text('Hindi Dubbed & Multi-Audio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('SuperEmbed • Multi-Language Dubs', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  trailing: _selectedServer.id == 'superembed'
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                      : null,
+                  onTap: () {
+                    final srv = streamServers.firstWhere((s) => s.id == 'superembed', orElse: () => streamServers[0]);
+                    Navigator.pop(ctx);
+                    _switchServer(srv);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Text('🌐', style: TextStyle(fontSize: 24)),
+                  title: const Text('International Multi-Audio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('VidSrc.su • Spanish, French & German tracks', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  trailing: _selectedServer.id == 'vidsrc-su'
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                      : null,
+                  onTap: () {
+                    final srv = streamServers.firstWhere((s) => s.id == 'vidsrc-su', orElse: () => streamServers[0]);
+                    Navigator.pop(ctx);
+                    _switchServer(srv);
+                  },
+                ),
+                const Divider(color: AppColors.border, height: 24),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.subtitles_rounded, color: AppColors.secondary, size: 20),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'To enable or change Subtitles, tap the [CC] icon at the bottom-right corner inside the video player.',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _changeEpisode(int season, int episode) {
     setState(() {
       _currentSeason = season;
@@ -401,6 +517,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.translate_rounded, color: AppColors.primary),
+                            tooltip: 'Audio Language & Subtitles',
+                            onPressed: _showLanguageModal,
                           ),
                           IconButton(
                             icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),

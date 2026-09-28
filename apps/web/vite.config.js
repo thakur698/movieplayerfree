@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolveStream } from '../../api/stream-resolver.js';
+import subtitlesHandler from '../../api/subtitles.js';
 
 export default defineConfig({
   server: {
@@ -11,6 +12,9 @@ export default defineConfig({
       name: 'cinestream-stream-api',
       configureServer(server) {
         server.middlewares.use(async (req, res, next) => {
+          if (req.url && req.url.startsWith('/api/subtitles')) {
+            return subtitlesHandler(req, res);
+          }
           if (!req.url || !req.url.startsWith('/api/stream')) {
             return next();
           }

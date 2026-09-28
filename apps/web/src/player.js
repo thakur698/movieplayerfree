@@ -20,6 +20,11 @@ export class StreamingPlayer {
     this.isResolvingDirect = false;
     this.blockPopups = Storage.getAdShieldEnabled();
     this.activeBlobUrls = [];
+    this.isLangPanelOpen = false;
+    this.selectedSubtitleUrl = null;
+    this.selectedSubtitleLabel = 'Off';
+    this.availableSubtitles = [];
+    this.isLoadingSubtitles = false;
   }
 
   async open({ media, season = 1, episode = 1 }) {
@@ -30,6 +35,10 @@ export class StreamingPlayer {
     this.directStreamUrl = null;
     this.subtitles = [];
     this.isResolvingDirect = false;
+    this.selectedSubtitleUrl = null;
+    this.selectedSubtitleLabel = 'Off';
+    this.availableSubtitles = [];
+    this.loadAvailableSubtitles();
     if (this.blockPopups) {
       this.enablePopupTrap();
     }
@@ -105,11 +114,17 @@ export class StreamingPlayer {
     const tmdbId = this.currentMedia.id;
     const imdbId = this.currentMedia.external_ids?.imdb_id || this.currentMedia.imdb_id || '';
 
-    if (isTv) {
-      return server.getTvUrl(tmdbId, imdbId, this.currentSeason, this.currentEpisode);
-    } else {
-      return server.getMovieUrl(tmdbId, imdbId);
+    let url = isTv
+      ? server.getTvUrl(tmdbId, imdbId, this.currentSeason, this.currentEpisode)
+      : server.getMovieUrl(tmdbId, imdbId);
+
+    // If a subtitle track is selected and server supports subtitle parameter
+    if (this.selectedSubtitleUrl && this.currentServerId === 'vidlink') {
+      const sep = url.includes('?') ? '&' : '?';
+      url += `${sep}subtitles=${encodeURIComponent(this.selectedSubtitleUrl)}`;
     }
+
+    return url;
   }
 
   async resolveDirectStream() {
@@ -214,6 +229,10 @@ export class StreamingPlayer {
           </div>
 
           <div class="player-header-actions">
+            <button class="btn btn-sm ${this.isLangPanelOpen ? 'btn-active-purple' : 'btn-secondary'}" id="player-lang-btn" title="Audio Language & Subtitles">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              <span class="btn-action-label">Audio & Subtitles</span>
+            </button>
             <button class="btn btn-sm ${this.blockPopups ? 'btn-adshield-active' : 'btn-secondary'}" id="player-sandbox-toggle" title="${this.blockPopups ? 'Ad Shield is ON (Popups & Redirects Blocked)' : 'Ad Shield is OFF'}">
               ${Icons.shield} <span class="btn-action-label">${this.blockPopups ? 'Ad Shield: ON' : 'Ad Shield: OFF'}</span>
             </button>
@@ -226,6 +245,66 @@ export class StreamingPlayer {
             <button class="btn btn-danger-soft btn-sm" id="player-close-btn" title="Close Player">
               ${Icons.close}
             </button>
+          </div>
+        </div>
+
+        <!-- Audio Language & Subtitles Dropdown Drawer -->
+        <div class="player-language-drawer ${this.isLangPanelOpen ? 'open' : ''}" id="player-language-drawer">
+          <div class="lang-drawer-inner">
+            <div class="lang-section">
+              <div class="lang-section-title">
+                <span class="lang-badge">🗣️ AUDIO TRACKS / DUBBED SERVERS</span>
+                <span class="lang-hint">Select a streaming server configured for your preferred audio language:</span>
+              </div>
+              <div class="audio-options-grid">
+                <button class="audio-opt-btn ${this.currentServerId === 'vidlink' ? 'active' : ''}" data-server-id="vidlink">
+                  <span class="flag">🇺🇸</span>
+                  <div class="audio-info">
+                    <span class="name">English (Original Audio • 1080p)</span>
+                    <span class="meta">VidLink • Cleanest Stream • 0 Ads</span>
+                  </div>
+                  ${this.currentServerId === 'vidlink' ? '<span class="check-icon">✓</span>' : ''}
+                </button>
+                <button class="audio-opt-btn ${this.currentServerId === 'superembed' ? 'active' : ''}" data-server-id="superembed">
+                  <span class="flag">🇮🇳</span>
+                  <div class="audio-info">
+                    <span class="name">Hindi Dubbed & Multi-Audio</span>
+                    <span class="meta">SuperEmbed • VIP Multi-Dubs</span>
+                  </div>
+                  ${this.currentServerId === 'superembed' ? '<span class="check-icon">✓</span>' : ''}
+                </button>
+                <button class="audio-opt-btn ${this.currentServerId === 'vidsrc-su' ? 'active' : ''}" data-server-id="vidsrc-su">
+                  <span class="flag">🌐</span>
+                  <div class="audio-info">
+                    <span class="name">International Multi-Audio</span>
+                    <span class="meta">VidSrc.su • Spanish / French / German</span>
+                  </div>
+                  ${this.currentServerId === 'vidsrc-su' ? '<span class="check-icon">✓</span>' : ''}
+                </button>
+                <button class="audio-opt-btn ${this.currentServerId === 'vidsrc-pm' ? 'active' : ''}" data-server-id="vidsrc-pm">
+                  <span class="flag">⚡</span>
+                  <div class="audio-info">
+                    <span class="name">Ultra Fast English Mirror</span>
+                    <span class="meta">VidSrc.pm • High Bitrate</span>
+                  </div>
+                  ${this.currentServerId === 'vidsrc-pm' ? '<span class="check-icon">✓</span>' : ''}
+                </button>
+              </div>
+            </div>
+
+            <div class="lang-section">
+              <div class="lang-section-title">
+                <span class="lang-badge">💬 SUBTITLES & CLOSED CAPTIONS</span>
+                <span class="lang-hint">Choose a subtitle language track or use the in-player controls:</span>
+              </div>
+              <div class="subtitles-quick-row" id="subtitles-chips-container">
+                ${this.renderSubtitleChips()}
+              </div>
+              <div class="subtitles-help-tip">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span><strong>In-Player CC Toggle:</strong> You can also hover over the video and click the <strong>[CC]</strong> icon at the bottom-right corner inside the video player to select from 20+ subtitle languages.</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -486,6 +565,28 @@ export class StreamingPlayer {
       bannerToggle.addEventListener('click', toggleAdShield);
     }
 
+    // Audio Language & Subtitles Drawer Toggle
+    const langBtn = this.containerEl.querySelector('#player-lang-btn');
+    if (langBtn) {
+      langBtn.addEventListener('click', () => {
+        this.isLangPanelOpen = !this.isLangPanelOpen;
+        const drawer = this.containerEl.querySelector('#player-language-drawer');
+        if (drawer) drawer.classList.toggle('open', this.isLangPanelOpen);
+        langBtn.classList.toggle('btn-active-purple', this.isLangPanelOpen);
+      });
+    }
+
+    // Audio Option Buttons in Language Drawer
+    const audioOptBtns = this.containerEl.querySelectorAll('.audio-opt-btn');
+    audioOptBtns.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const srvId = btn.dataset.serverId;
+        await this.switchServer(srvId);
+      });
+    });
+
+    this.bindSubtitleChips();
+
     // Fullscreen
     const fullscreenBtn = this.containerEl.querySelector('#player-fullscreen-btn');
     if (fullscreenBtn) {
@@ -505,24 +606,7 @@ export class StreamingPlayer {
     const serverPills = this.containerEl.querySelectorAll('.server-pill');
     serverPills.forEach(pill => {
       pill.addEventListener('click', async () => {
-        const srvId = pill.dataset.serverId;
-        if (srvId === this.currentServerId && !this.isResolvingDirect) return;
-        this.currentServerId = srvId;
-        Storage.setSelectedServer(srvId);
-
-        if (this.hlsInstance) {
-          this.hlsInstance.destroy();
-          this.hlsInstance = null;
-        }
-
-        if (srvId === 'direct-hls') {
-          this.directStreamUrl = null;
-          await this.resolveDirectStream();
-        } else {
-          this.directStreamUrl = null;
-          this.render();
-          this.showToast(`Switched to ${STREAM_SERVERS.find(s => s.id === srvId)?.name}`);
-        }
+        await this.switchServer(pill.dataset.serverId);
       });
     });
 
@@ -681,6 +765,126 @@ export class StreamingPlayer {
       this.updateStreamUrl();
       this.showToast(`Playing Season ${this.currentSeason} Episode ${epNum}`);
     }
+  }
+
+  async switchServer(srvId) {
+    if (srvId === this.currentServerId && !this.isResolvingDirect) return;
+    this.currentServerId = srvId;
+    Storage.setSelectedServer(srvId);
+
+    if (this.hlsInstance) {
+      this.hlsInstance.destroy();
+      this.hlsInstance = null;
+    }
+
+    if (srvId === 'direct-hls') {
+      this.directStreamUrl = null;
+      await this.resolveDirectStream();
+    } else {
+      this.directStreamUrl = null;
+      this.render();
+      const srvObj = STREAM_SERVERS.find(s => s.id === srvId);
+      this.showToast(`Switched to ${srvObj ? srvObj.name : srvId}`);
+    }
+  }
+
+  bindSubtitleChips() {
+    const chips = this.containerEl.querySelectorAll('.sub-chip');
+    chips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const rawUrl = chip.dataset.subUrl;
+        const label = chip.dataset.subLabel || 'Subtitles';
+
+        if (!rawUrl) {
+          // Off
+          this.selectedSubtitleUrl = null;
+          this.selectedSubtitleLabel = 'Off';
+          this.render();
+          this.showToast('Subtitles turned off');
+          return;
+        }
+
+        const vttUrl = `${window.location.origin}/api/subtitles?url=${encodeURIComponent(rawUrl)}`;
+        this.selectedSubtitleUrl = vttUrl;
+        this.selectedSubtitleLabel = label;
+        this.render();
+        this.showToast(`Loaded ${label} Subtitles`);
+      });
+    });
+  }
+
+  async loadAvailableSubtitles() {
+    if (!this.currentMedia) return;
+    this.isLoadingSubtitles = true;
+    try {
+      const tmdbId = this.currentMedia.id;
+      const isTv = this.currentMedia.media_type === 'tv';
+      const imdbId = this.currentMedia.external_ids?.imdb_id || this.currentMedia.imdb_id || '';
+      let url = `/api/stream?tmdbId=${tmdbId}&type=${isTv ? 'tv' : 'movie'}`;
+      if (isTv) url += `&season=${this.currentSeason}&episode=${this.currentEpisode}`;
+      if (imdbId) url += `&imdbId=${imdbId}`;
+
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.subtitles && Array.isArray(data.subtitles) && data.subtitles.length > 0) {
+          this.availableSubtitles = data.subtitles;
+          const container = this.containerEl.querySelector('#subtitles-chips-container');
+          if (container) {
+            container.innerHTML = this.renderSubtitleChips();
+            this.bindSubtitleChips();
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Subtitles fetch error:', e);
+    } finally {
+      this.isLoadingSubtitles = false;
+    }
+  }
+
+  renderSubtitleChips() {
+    const isOff = !this.selectedSubtitleUrl;
+    let html = `
+      <button class="sub-chip ${isOff ? 'active' : ''}" data-sub-url="">
+        ✕ Subtitles Off
+      </button>
+    `;
+
+    // Standard high-demand languages as default presets
+    const presets = [
+      { lang: 'en', label: 'English (EN)' },
+      { lang: 'hi', label: 'Hindi (HI)' },
+      { lang: 'es', label: 'Spanish (ES)' },
+      { lang: 'fr', label: 'French (FR)' },
+      { lang: 'de', label: 'German (DE)' },
+      { lang: 'ar', label: 'Arabic (AR)' },
+      { lang: 'it', label: 'Italian (IT)' },
+      { lang: 'pt', label: 'Portuguese (PT)' },
+      { lang: 'ru', label: 'Russian (RU)' },
+    ];
+
+    if (this.availableSubtitles && this.availableSubtitles.length) {
+      this.availableSubtitles.forEach(sub => {
+        const isActive = this.selectedSubtitleUrl && this.selectedSubtitleUrl.includes(encodeURIComponent(sub.url));
+        const label = sub.label || (sub.lang || 'SUB').toUpperCase();
+        html += `
+          <button class="sub-chip ${isActive ? 'active' : ''}" data-sub-url="${sub.url}" data-sub-label="${label}">
+            ${label}
+          </button>
+        `;
+      });
+    } else {
+      presets.forEach(p => {
+        html += `
+          <button class="sub-chip" data-sub-lang="${p.lang}" data-sub-label="${p.label}">
+            ${p.label}
+          </button>
+        `;
+      });
+    }
+
+    return html;
   }
 
   updateStreamUrl() {

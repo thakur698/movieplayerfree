@@ -1,12 +1,16 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { resolveStream } from './api/stream-resolver.js';
+import subtitlesHandler from './api/subtitles.js';
 
 function streamApiPlugin() {
   return {
     name: 'stream-api-dev-server',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
+        if (req.url && req.url.startsWith('/api/subtitles')) {
+          return subtitlesHandler(req, res);
+        }
         if (!req.url || !req.url.startsWith('/api/stream')) {
           return next();
         }
