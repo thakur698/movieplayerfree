@@ -308,6 +308,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
+                  leading: const Text('🌍', style: TextStyle(fontSize: 24)),
+                  title: const Text('SuperEmbed (Multi-Audio & Dubs)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Multi-Server Aggregator • Regional Audio & Dub Mirrors', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  trailing: _selectedServer.id == 'superembed'
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                      : null,
+                  onTap: () {
+                    final srv = streamServers.firstWhere((s) => s.id == 'superembed', orElse: () => streamServers[0]);
+                    Navigator.pop(ctx);
+                    _switchServer(srv);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
                   leading: const Text('⚡', style: TextStyle(fontSize: 24)),
                   title: const Text('VidSrc.pm (Ultra Fast)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   subtitle: const Text('Fast High-Speed CDN Mirror', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),

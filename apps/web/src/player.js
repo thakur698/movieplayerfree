@@ -265,6 +265,14 @@ export class StreamingPlayer {
                   </div>
                   ${this.currentServerId === 'vidlink' ? '<span class="check-icon">✓</span>' : ''}
                 </button>
+                <button class="audio-opt-btn ${this.currentServerId === 'superembed' ? 'active' : ''}" data-server-id="superembed">
+                  <span class="flag">🌍</span>
+                  <div class="audio-info">
+                    <span class="name">SuperEmbed (Multi-Audio & Dubs)</span>
+                    <span class="meta">Multi-Server Aggregator • Regional Audio & Dub Mirrors</span>
+                  </div>
+                  ${this.currentServerId === 'superembed' ? '<span class="check-icon">✓</span>' : ''}
+                </button>
                 <button class="audio-opt-btn ${this.currentServerId === 'vidsrc-pm' ? 'active' : ''}" data-server-id="vidsrc-pm">
                   <span class="flag">⚡</span>
                   <div class="audio-info">

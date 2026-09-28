@@ -27,6 +27,14 @@ export const STREAM_SERVERS = [
     getTvUrl: (tmdbId, imdbId, season, episode) => `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}`
   },
   {
+    id: 'superembed',
+    name: 'SuperEmbed (Multi-Audio)',
+    badge: 'Multi-Lang / Dubs',
+    isPrimary: false,
+    getMovieUrl: (tmdbId) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
+    getTvUrl: (tmdbId, imdbId, season, episode) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`
+  },
+  {
     id: 'vidsrc-pm',
     name: 'VidSrc.pm',
     badge: 'Ultra Fast',
@@ -82,14 +90,6 @@ export const STREAM_SERVERS = [
     isPrimary: false,
     getMovieUrl: (tmdbId, imdbId) => `https://vidsrc.me/embed/movie?tmdb=${tmdbId}${imdbId ? `&imdb=${imdbId}` : ''}`,
     getTvUrl: (tmdbId, imdbId, season, episode) => `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`
-  },
-  {
-    id: 'superembed',
-    name: 'SuperEmbed',
-    badge: 'Backup',
-    isPrimary: false,
-    getMovieUrl: (tmdbId) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
-    getTvUrl: (tmdbId, imdbId, season, episode) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`
   }
 ];
 
