@@ -12,17 +12,26 @@ export const CONFIG = {
   TMDB_IMAGE_W780: 'https://image.tmdb.org/t/p/w780',
   PLACEHOLDER_POSTER: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=500&auto=format&fit=crop&q=80',
   PLACEHOLDER_BACKDROP: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=1280&auto=format&fit=crop&q=80',
-  DEFAULT_SERVER: 'vidsrc-pm',
+  DEFAULT_SERVER: 'direct-hls',
 };
 
 // Streaming Servers configuration supporting both Movies & Web Series (TV shows)
 // Prioritized by verified working status, ad-blocking compatibility, and stream speed
 export const STREAM_SERVERS = [
   {
+    id: 'direct-hls',
+    name: 'Direct Player',
+    badge: '0 Ads • 1080p',
+    isDirect: true,
+    isPrimary: true,
+    getMovieUrl: (tmdbId, imdbId) => `/api/stream?tmdbId=${tmdbId}&type=movie${imdbId ? `&imdbId=${imdbId}` : ''}`,
+    getTvUrl: (tmdbId, imdbId, season, episode) => `/api/stream?tmdbId=${tmdbId}&type=tv&season=${season}&episode=${episode}${imdbId ? `&imdbId=${imdbId}` : ''}`
+  },
+  {
     id: 'vidsrc-pm',
     name: 'VidSrc.pm',
     badge: 'Ultra Fast',
-    isPrimary: true,
+    isPrimary: false,
     getMovieUrl: (tmdbId, imdbId) => `https://vidsrc.pm/embed/movie?tmdb=${tmdbId}`,
     getTvUrl: (tmdbId, imdbId, season, episode) => `https://vidsrc.pm/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`
   },

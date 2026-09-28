@@ -1168,6 +1168,65 @@ body {
   display: block;
 }
 
+/* Direct Ad-Free Stream Resolving Loader */
+.player-resolving-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.12) 0%, rgba(10, 11, 15, 0.98) 70%);
+  gap: 20px;
+  z-index: 10;
+  text-align: center;
+  padding: 24px;
+}
+
+.loader-pulse-ring {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid rgba(16, 185, 129, 0.2);
+  border-top-color: #10b981;
+  border-right-color: #06b6d4;
+  animation: spin 0.8s linear infinite;
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
+}
+
+.loader-text-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.loader-badge {
+  font-family: var(--font-heading);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: #a7f3d0;
+  text-transform: uppercase;
+}
+
+.loader-text-group h3 {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.loader-text-group p {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  max-width: 420px;
+}
+
 /* Ad Shield Button & Notification Bar */
 .btn-adshield-active {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
@@ -1331,6 +1390,36 @@ body {
   padding: 2px 7px;
   border-radius: var(--radius-xs);
   color: #94a3b8;
+}
+
+.server-pill.server-direct {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #a7f3d0;
+}
+
+.server-pill.server-direct:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22) 0%, rgba(6, 182, 212, 0.22) 100%);
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.server-pill.server-direct.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #34d399;
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+}
+
+.server-pill.server-direct .server-badge {
+  background: rgba(0, 0, 0, 0.35);
+  color: #6ee7b7;
+  font-weight: 700;
+}
+
+.server-pill.server-direct.active .server-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
 }
 
 /* TV Episode Fast Navigation */

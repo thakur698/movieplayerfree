@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import '../config/app_config.dart';
@@ -108,6 +110,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             final uri = Uri.tryParse(request.url);
             if (uri == null) return NavigationDecision.prevent;
 
+            // Allow local HTML strings and data URIs for direct video playback
+            if (request.url.startsWith('about:') || request.url.startsWith('data:')) {
+              return NavigationDecision.navigate;
+            }
+
             // Block non-web schemes (e.g. itms-appss, intent, etc.)
             if (uri.scheme != 'http' && uri.scheme != 'https') {
               return NavigationDecision.prevent;
@@ -128,6 +135,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
               'cloudflare',
               'bunny',
               'm3u8',
+              'movieplayerfree.vercel.app',
+              'nextgen',
+              'quietmidnight',
             ];
 
             final host = uri.host.toLowerCase();
@@ -142,8 +152,73 @@ class _PlayerScreenState extends State<PlayerScreen> {
             return NavigationDecision.prevent;
           },
         ),
-      )
-      ..loadRequest(Uri.parse(_currentStreamUrl));
+      );
+
+    _loadCurrentStream();
+  }
+
+  Future<void> _loadCurrentStream() async {
+    if (_selectedServer.id == 'direct-hls') {
+      if (mounted) setState(() => _isLoading = true);
+      try {
+        final uri = Uri.parse(_currentStreamUrl);
+        final response = await http.get(uri).timeout(const Duration(seconds: 8));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['success'] == true && data['streamUrl'] != null) {
+            final streamUrl = data['streamUrl'];
+            final subs = (data['subtitles'] as List<dynamic>?) ?? [];
+            final trackTags = subs.map((sub) {
+              final label = sub['label']?.toString() ?? 'Sub';
+              final srclang = sub['lang']?.toString() ?? 'en';
+              final src = sub['url']?.toString() ?? '';
+              final isDefault = srclang.toLowerCase() == 'en' ? 'default' : '';
+              return '<track label="$label" kind="subtitles" srclang="$srclang" src="$src" $isDefault>';
+            }).join('\n    ');
+
+            final htmlContent = '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    video { width: 100%; height: 100%; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <video id="player" controls autoplay playsinline webkit-playsinline crossorigin="anonymous" src="$streamUrl">
+    $trackTags
+  </video>
+</body>
+</html>
+''';
+            await _controller.loadHtmlString(htmlContent, baseUrl: 'https://movieplayerfree.vercel.app');
+            if (mounted) setState(() => _isLoading = false);
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint('[DirectPlayer] Direct stream resolution failed, falling back: $e');
+      }
+
+      // Fallback to VidSrc.pm if direct resolution is unavailable
+      if (mounted) {
+        final fallbackServer = streamServers.firstWhere(
+          (s) => s.id == 'vidsrc-pm',
+          orElse: () => streamServers[1],
+        );
+        setState(() => _selectedServer = fallbackServer);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Direct stream not indexed for this title — using VidSrc mirror'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+
+    _controller.loadRequest(Uri.parse(_currentStreamUrl));
   }
 
   Future<void> _loadEpisodes() async {
@@ -168,7 +243,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _isLoading = true;
     });
     StorageService.setPreferredServer(server.id);
-    _controller.loadRequest(Uri.parse(_currentStreamUrl));
+    _loadCurrentStream();
     _saveProgress();
   }
 
@@ -178,7 +253,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _currentEpisode = episode;
       _isLoading = true;
     });
-    _controller.loadRequest(Uri.parse(_currentStreamUrl));
+    _loadCurrentStream();
     _saveProgress();
   }
 

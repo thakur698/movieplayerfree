@@ -9,22 +9,27 @@ export class StreamingPlayer {
     this.containerEl = containerEl;
     this.onBack = onBackCallback;
     this.currentMedia = null;
-    this.currentServerId = Storage.getSelectedServer() || 'vidsrc-pm';
+    this.currentServerId = Storage.getSelectedServer() || 'direct-hls';
     this.currentSeason = 1;
     this.currentEpisode = 1;
     this.seasonsData = [];
     this.episodesCache = new Map();
     this.hlsInstance = null;
     this.directStreamUrl = null;
+    this.subtitles = [];
+    this.isResolvingDirect = false;
     this.blockPopups = Storage.getAdShieldEnabled();
+    this.activeBlobUrls = [];
   }
 
   async open({ media, season = 1, episode = 1 }) {
     this.currentMedia = media;
     this.currentSeason = Number(season) || 1;
     this.currentEpisode = Number(episode) || 1;
-    this.currentServerId = Storage.getSelectedServer() || 'vidsrc-pm';
+    this.currentServerId = Storage.getSelectedServer() || 'direct-hls';
     this.directStreamUrl = null;
+    this.subtitles = [];
+    this.isResolvingDirect = false;
     if (this.blockPopups) {
       this.enablePopupTrap();
     }
@@ -56,9 +61,17 @@ export class StreamingPlayer {
       }
     }
 
-    this.render();
-    if (isTv) {
-      await this.loadSeasonEpisodes(this.currentSeason);
+    if (this.currentServerId === 'direct-hls') {
+      this.render();
+      if (isTv) {
+        this.loadSeasonEpisodes(this.currentSeason);
+      }
+      await this.resolveDirectStream();
+    } else {
+      this.render();
+      if (isTv) {
+        await this.loadSeasonEpisodes(this.currentSeason);
+      }
     }
 
     this.saveWatchHistory();
@@ -99,11 +112,87 @@ export class StreamingPlayer {
     }
   }
 
+  async resolveDirectStream() {
+    this.isResolvingDirect = true;
+    this.render();
+
+    const isTv = this.currentMedia.media_type === 'tv';
+    const tmdbId = this.currentMedia.id;
+    const imdbId = this.currentMedia.external_ids?.imdb_id || this.currentMedia.imdb_id || '';
+
+    let url = `/api/stream?tmdbId=${tmdbId}&type=${isTv ? 'tv' : 'movie'}`;
+    if (isTv) {
+      url += `&season=${this.currentSeason}&episode=${this.currentEpisode}`;
+    }
+    if (imdbId) {
+      url += `&imdbId=${imdbId}`;
+    }
+
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.streamUrl) {
+          this.directStreamUrl = data.streamUrl;
+          this.subtitles = data.subtitles || [];
+          this.isResolvingDirect = false;
+          this.render();
+          this.showToast('✨ Direct Ad-Free Stream Loaded (1080p HLS)');
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[Player] Direct stream resolution error:', err);
+    }
+
+    // Direct resolution unavailable for this title -> fallback to VidSrc.pm
+    this.isResolvingDirect = false;
+    this.directStreamUrl = null;
+    this.currentServerId = 'vidsrc-pm';
+    this.render();
+    this.showToast('Direct stream not indexed for this title — switched to VidSrc mirror');
+  }
+
+  async attachSubtitles(videoEl, subtitles) {
+    if (!subtitles || !subtitles.length) return;
+    const oldTracks = videoEl.querySelectorAll('track');
+    oldTracks.forEach(t => t.remove());
+
+    for (const sub of subtitles.slice(0, 8)) {
+      try {
+        const res = await fetch(sub.url);
+        if (res.ok) {
+          const srtText = await res.text();
+          // Convert SRT to WebVTT
+          const vttText = 'WEBVTT\n\n' + srtText
+            .replace(/\r\n|\r/g, '\n')
+            .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+          const blob = new Blob([vttText], { type: 'text/vtt' });
+          const trackUrl = URL.createObjectURL(blob);
+          this.activeBlobUrls.push(trackUrl);
+
+          const track = document.createElement('track');
+          track.kind = 'subtitles';
+          track.label = sub.label || (sub.lang || 'en').toUpperCase();
+          track.srclang = sub.lang || 'en';
+          track.src = trackUrl;
+          if (sub.lang === 'en' || sub.lang === 'eng') {
+            track.default = true;
+          }
+          videoEl.appendChild(track);
+        }
+      } catch (err) {
+        console.warn('Could not load subtitle track:', sub.lang, err);
+      }
+    }
+  }
+
   render() {
     const isTv = this.currentMedia.media_type === 'tv';
     const title = this.currentMedia.title || this.currentMedia.name;
     const year = (this.currentMedia.release_date || this.currentMedia.first_air_date || '').substring(0, 4);
     const shouldSandbox = this.blockPopups && this.currentServerId !== 'vidlink';
+    const isDirectActive = this.currentServerId === 'direct-hls';
 
     this.containerEl.innerHTML = `
       <div class="player-view-container" id="player-view-container">
@@ -118,7 +207,7 @@ export class StreamingPlayer {
                 <h2>${title}</h2>
                 <span class="badge badge-year">${year}</span>
                 <span class="badge ${isTv ? 'badge-tv' : 'badge-movie'}">${isTv ? 'WEB SERIES' : 'MOVIE'}</span>
-                <span class="badge badge-quality">STREAMING ACTIVE</span>
+                <span class="badge ${isDirectActive ? 'badge-direct' : 'badge-quality'}">${isDirectActive ? '✨ DIRECT AD-FREE' : 'STREAMING ACTIVE'}</span>
               </div>
               ${isTv ? `<div class="player-ep-subtitle" id="player-ep-subtitle">Season ${this.currentSeason} • Episode ${this.currentEpisode}</div>` : ''}
             </div>
@@ -144,8 +233,17 @@ export class StreamingPlayer {
         <div class="player-content-layout">
           <div class="player-video-section">
             <div class="player-iframe-wrapper" id="player-iframe-wrapper">
-              ${this.directStreamUrl ? `
-                <video id="native-hls-video" controls autoplay class="native-video-el"></video>
+              ${this.isResolvingDirect ? `
+                <div class="player-resolving-loader">
+                  <div class="loader-pulse-ring"></div>
+                  <div class="loader-text-group">
+                    <span class="loader-badge">⚡ ZERO-ADS STREAM RESOLVER</span>
+                    <h3>Resolving Direct 1080p Stream...</h3>
+                    <p>Extracting high-speed CDN master manifest & multi-language subtitles</p>
+                  </div>
+                </div>
+              ` : this.directStreamUrl ? `
+                <video id="native-hls-video" controls autoplay playsinline class="native-video-el"></video>
               ` : `
                 <iframe
                   id="streaming-iframe"
@@ -163,12 +261,14 @@ export class StreamingPlayer {
             </div>
 
             <!-- Ad Shield Status & Tip Notification Bar -->
-            <div class="ad-shield-status-bar ${this.blockPopups ? 'shield-on' : 'shield-off'}">
+            <div class="ad-shield-status-bar ${isDirectActive ? 'shield-on' : (this.blockPopups ? 'shield-on' : 'shield-off')}">
               <div class="shield-status-info">
                 ${Icons.shield}
-                <span>${this.blockPopups
-                  ? '<strong>Ad Shield Active:</strong> Popups & new-tab redirects are blocked natively. If a stream buffers, click another server below.'
-                  : '<strong>Ad Shield OFF:</strong> Standard mode active. Third-party video ads and popups are not filtered.'}</span>
+                <span>${isDirectActive
+                  ? '<strong>Direct Player Active:</strong> Native HTML5 video engine playing direct master stream with <strong>ZERO ADS</strong>, ZERO popups, and multi-language captions.'
+                  : (this.blockPopups
+                    ? '<strong>Ad Shield Active:</strong> Popups & new-tab redirects are blocked natively. If a stream buffers, click another server below.'
+                    : '<strong>Ad Shield OFF:</strong> Standard mode active. Third-party video ads and popups are not filtered.')}</span>
               </div>
               <button class="btn-shield-quick-toggle" id="player-shield-banner-btn">
                 ${this.blockPopups ? 'Turn OFF' : 'Turn ON'}
@@ -184,12 +284,12 @@ export class StreamingPlayer {
                 </div>
                 <div class="server-tip">
                   ${Icons.shield}
-                  <span>VidLink & VidSrc.pm provide ad-free high-speed streams</span>
+                  <span>Direct Player provides zero-ad 1080p HLS streaming</span>
                 </div>
               </div>
               <div class="server-pills-row">
                 ${STREAM_SERVERS.map(srv => `
-                  <button class="server-pill ${srv.id === this.currentServerId ? 'active' : ''}" data-server-id="${srv.id}">
+                  <button class="server-pill ${srv.isDirect ? 'server-direct' : ''} ${srv.id === this.currentServerId ? 'active' : ''}" data-server-id="${srv.id}">
                     <span class="server-dot"></span>
                     <span class="server-name">${srv.name}</span>
                     <span class="server-badge">${srv.badge}</span>
@@ -250,6 +350,10 @@ export class StreamingPlayer {
     const video = this.containerEl.querySelector('#native-hls-video');
     if (!video) return;
 
+    if (this.subtitles && this.subtitles.length) {
+      this.attachSubtitles(video, this.subtitles);
+    }
+
     if (Hls.isSupported()) {
       if (this.hlsInstance) {
         this.hlsInstance.destroy();
@@ -257,11 +361,30 @@ export class StreamingPlayer {
       this.hlsInstance = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
+        backBufferLength: 90
       });
       this.hlsInstance.loadSource(m3u8Url);
       this.hlsInstance.attachMedia(video);
       this.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(e => console.log('Autoplay prevented:', e));
+      });
+      this.hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.warn('Network error, attempting recovery...');
+              this.hlsInstance.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.warn('Media error, attempting recovery...');
+              this.hlsInstance.recoverMediaError();
+              break;
+            default:
+              console.error('Fatal HLS error:', data);
+              this.hlsInstance.destroy();
+              break;
+          }
+        }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = m3u8Url;
@@ -281,11 +404,20 @@ export class StreamingPlayer {
     // Refresh
     const refreshBtn = this.containerEl.querySelector('#player-refresh-btn');
     if (refreshBtn) {
-      refreshBtn.addEventListener('click', () => {
-        const iframe = this.containerEl.querySelector('#streaming-iframe');
-        if (iframe) {
-          iframe.src = this.getEmbedUrl();
-          this.showToast('Reloaded video stream');
+      refreshBtn.addEventListener('click', async () => {
+        if (this.currentServerId === 'direct-hls') {
+          if (this.hlsInstance) {
+            this.hlsInstance.destroy();
+            this.hlsInstance = null;
+          }
+          this.directStreamUrl = null;
+          await this.resolveDirectStream();
+        } else {
+          const iframe = this.containerEl.querySelector('#streaming-iframe');
+          if (iframe) {
+            iframe.src = this.getEmbedUrl();
+            this.showToast('Reloaded video stream');
+          }
         }
       });
     }
@@ -332,15 +464,25 @@ export class StreamingPlayer {
     // Server Switcher
     const serverPills = this.containerEl.querySelectorAll('.server-pill');
     serverPills.forEach(pill => {
-      pill.addEventListener('click', () => {
+      pill.addEventListener('click', async () => {
         const srvId = pill.dataset.serverId;
-        if (srvId === this.currentServerId) return;
+        if (srvId === this.currentServerId && !this.isResolvingDirect) return;
         this.currentServerId = srvId;
-        this.directStreamUrl = null;
         Storage.setSelectedServer(srvId);
 
-        this.render();
-        this.showToast(`Switched to ${STREAM_SERVERS.find(s => s.id === srvId)?.name}`);
+        if (this.hlsInstance) {
+          this.hlsInstance.destroy();
+          this.hlsInstance = null;
+        }
+
+        if (srvId === 'direct-hls') {
+          this.directStreamUrl = null;
+          await this.resolveDirectStream();
+        } else {
+          this.directStreamUrl = null;
+          this.render();
+          this.showToast(`Switched to ${STREAM_SERVERS.find(s => s.id === srvId)?.name}`);
+        }
       });
     });
 
@@ -352,7 +494,11 @@ export class StreamingPlayer {
         this.currentSeason = newSeason;
         this.currentEpisode = 1;
         await this.loadSeasonEpisodes(newSeason);
-        this.updateStreamUrl();
+        if (this.currentServerId === 'direct-hls') {
+          await this.resolveDirectStream();
+        } else {
+          this.updateStreamUrl();
+        }
       });
     }
 
@@ -449,9 +595,8 @@ export class StreamingPlayer {
     }
   }
 
-  switchEpisode(epNum) {
+  async switchEpisode(epNum) {
     this.currentEpisode = epNum;
-    this.updateStreamUrl();
 
     // Update active highlight in episode list
     const epCards = this.containerEl.querySelectorAll('.episode-item-card');
@@ -484,7 +629,18 @@ export class StreamingPlayer {
     }
 
     this.saveWatchHistory();
-    this.showToast(`Playing Season ${this.currentSeason} Episode ${epNum}`);
+
+    if (this.currentServerId === 'direct-hls') {
+      if (this.hlsInstance) {
+        this.hlsInstance.destroy();
+        this.hlsInstance = null;
+      }
+      this.directStreamUrl = null;
+      await this.resolveDirectStream();
+    } else {
+      this.updateStreamUrl();
+      this.showToast(`Playing Season ${this.currentSeason} Episode ${epNum}`);
+    }
   }
 
   updateStreamUrl() {
@@ -525,6 +681,10 @@ export class StreamingPlayer {
       this.hlsInstance.destroy();
       this.hlsInstance = null;
     }
+    for (const url of this.activeBlobUrls) {
+      try { URL.revokeObjectURL(url); } catch (e) {}
+    }
+    this.activeBlobUrls = [];
     this.containerEl.innerHTML = '';
     if (this.onBack) this.onBack();
   }

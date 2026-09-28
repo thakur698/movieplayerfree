@@ -47,6 +47,15 @@ class StreamServer {
 
 final List<StreamServer> streamServers = [
   StreamServer(
+    id: 'direct-hls',
+    name: 'Direct Player',
+    badge: '0 Ads • 1080p',
+    getMovieUrl: (tmdbId, [imdbId]) =>
+        'https://movieplayerfree.vercel.app/api/stream?tmdbId=$tmdbId&type=movie${imdbId != null && imdbId.isNotEmpty ? '&imdbId=$imdbId' : ''}',
+    getTvUrl: (tmdbId, imdbId, season, episode) =>
+        'https://movieplayerfree.vercel.app/api/stream?tmdbId=$tmdbId&type=tv&season=$season&episode=$episode${imdbId != null && imdbId.isNotEmpty ? '&imdbId=$imdbId' : ''}',
+  ),
+  StreamServer(
     id: 'vidsrc-pm',
     name: 'VidSrc.pm',
     badge: 'Ultra Fast',
