@@ -1,1 +1,49 @@
-{}
+{
+  "therealthakur.10@gmail.com": {
+    "updatedAt": "2026-09-28T20:20:04.403Z",
+    "name": "ABHI Thakur",
+    "scheduledEmails": [
+      {
+        "id": "f89f8d1a-1ce2-4567-b491-309165ed6e63",
+        "days": 4,
+        "scheduled_at": "2026-10-02T20:11:11.377Z"
+      },
+      {
+        "id": "0ad0df9f-221d-413b-a132-e527eb5ce87f",
+        "days": 6,
+        "scheduled_at": "2026-10-04T20:11:11.377Z"
+      },
+      {
+        "id": "80b7bcc9-6a8c-4329-b176-0291b2bb4bc1",
+        "days": 8,
+        "scheduled_at": "2026-10-06T20:11:11.377Z"
+      }
+    ]
+  },
+  "therealthakur2.10@gmail.com": {
+    "updatedAt": "2026-09-28T20:21:29.335Z",
+    "name": "Alex",
+    "scheduledEmails": [
+      {
+        "id": "ca86c675-5382-4061-818b-5375911ca486",
+        "days": 2,
+        "scheduled_at": "2026-09-30T20:21:25.291Z"
+      },
+      {
+        "id": "5fc03375-8af2-4f3b-af7a-e7d74d80c9ad",
+        "days": 4,
+        "scheduled_at": "2026-10-02T20:21:25.291Z"
+      },
+      {
+        "id": "fd81c2af-6bc5-4798-a1ef-59145d6ae0d4",
+        "days": 6,
+        "scheduled_at": "2026-10-04T20:21:25.291Z"
+      },
+      {
+        "id": "da5376f7-d75b-4fa4-a96b-9ef6d26fa496",
+        "days": 8,
+        "scheduled_at": "2026-10-06T20:21:25.291Z"
+      }
+    ]
+  }
+}

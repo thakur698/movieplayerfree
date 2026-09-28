@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const MAILOFLY_API_KEY = process.env.MAILOFLY_API_KEY || 'mf_live_xZGIuU6Ahv8btXnpiK7dwAdCXrWQd7uw';
 const MAILOFLY_BASE_URL = 'https://api.mailofly.com/v1';
-const SENDER_EMAIL = 'CineStream <therealthakur.10@gmail.com>';
+const SENDER_EMAIL = 'therealthakur.10@gmail.com';
 
 // Local schedule store path
 const DATA_DIR = path.join(__dirname, 'data');
@@ -52,8 +52,8 @@ function saveSchedules(schedules) {
   }
 }
 
-// Mailofly API request helper
-async function mailoflyRequest(endpoint, body = null, method = 'POST') {
+// Mailofly API request helper with timeout
+async function mailoflyRequest(endpoint, body = null, method = 'POST', timeoutMs = 15000) {
   const url = `${MAILOFLY_BASE_URL}${endpoint}`;
   const options = {
     method,
@@ -62,7 +62,8 @@ async function mailoflyRequest(endpoint, body = null, method = 'POST') {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'User-Agent': 'CineStream-App/1.0'
-    }
+    },
+    signal: AbortSignal.timeout(timeoutMs)
   };
 
   if (body) {
@@ -332,9 +333,7 @@ export async function scheduleInactivitySequence({ to, name = '' }) {
     }
   ];
 
-  const scheduledIds = [];
-
-  for (const item of sequenceConfigs) {
+  const promises = sequenceConfigs.map(async (item) => {
     const scheduledTime = new Date(now + item.days * 24 * 60 * 60 * 1000).toISOString();
     const html = buildEmailHtml({
       title: item.subject,
@@ -356,16 +355,22 @@ export async function scheduleInactivitySequence({ to, name = '' }) {
       });
 
       if (res && res.id) {
-        scheduledIds.push({
+        return {
           id: res.id,
           days: item.days,
           scheduled_at: scheduledTime
-        });
+        };
       }
     } catch (err) {
       console.warn(`[Mail Service] Failed to schedule Day ${item.days} email for ${to}:`, err.message);
     }
-  }
+    return null;
+  });
+
+  const settled = await Promise.allSettled(promises);
+  const scheduledIds = settled
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => r.value);
 
   // Update schedule store
   const schedules = readSchedules();
@@ -463,19 +468,22 @@ export default async function mailHandler(req, res) {
       const welcomeResult = await sendWelcomeEmail({ to: email, name, isNewUser });
       console.log(`[CineStream Mail API] Welcome email sent successfully! ID: ${welcomeResult.id}`);
 
-      // 2. Cancel any previous inactive schedules
-      await cancelUserInactivityEmails(email);
-
-      // 3. Schedule fresh sequence of inactivity emails (every 2 days)
-      const scheduled = await scheduleInactivitySequence({ to: email, name });
+      // 2. Schedule inactivity sequence in background
+      (async () => {
+        try {
+          await cancelUserInactivityEmails(email);
+          const scheduled = await scheduleInactivitySequence({ to: email, name });
+          console.log(`[CineStream Mail API] Inactivity sequence scheduled (${scheduled.length} emails) for ${email}`);
+        } catch (e) {
+          console.warn('[CineStream Mail API] Inactivity background scheduling note:', e.message);
+        }
+      })();
 
       res.statusCode = 200;
       res.end(JSON.stringify({
         success: true,
         message: 'Welcome email sent and 2-day inactivity sequence scheduled',
-        welcomeEmailId: welcomeResult.id,
-        scheduledCount: scheduled.length,
-        schedules: scheduled
+        welcomeEmailId: welcomeResult.id
       }));
       return;
     }
