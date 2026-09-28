@@ -2,6 +2,15 @@ import { tmdbApi } from '../api.js';
 import { Icons } from '../icons.js';
 import { Storage } from '../storage.js';
 
+const GENRE_MAP = {
+  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+  99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
+  27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi',
+  10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western',
+  10759: 'Action & Adv', 10762: 'Kids', 10764: 'Reality',
+  10765: 'Sci-Fi & Fantasy'
+};
+
 export function createMediaCard(item, options = {}) {
   const isTv = item.media_type === 'tv' || Boolean(item.first_air_date);
   const mediaType = isTv ? 'tv' : 'movie';
@@ -12,6 +21,10 @@ export function createMediaCard(item, options = {}) {
   const matchPercent = Math.min(99, Math.floor((item.vote_average || 8) * 10) + 12);
   const posterUrl = tmdbApi.getPosterUrl(item.poster_path, 'w500');
   const inWatchlist = Storage.isInWatchlist(item.id, mediaType);
+
+  const primaryGenre = (item.genre_ids && item.genre_ids.length > 0)
+    ? (GENRE_MAP[item.genre_ids[0]] || '')
+    : (item.genres && item.genres.length > 0 ? (item.genres[0].name || '') : '');
 
   const card = document.createElement('div');
   card.className = `media-card ${options.className || ''}`;
@@ -57,7 +70,7 @@ export function createMediaCard(item, options = {}) {
       <h3 class="card-title" title="${title}">${title}</h3>
       <div class="card-sub-info">
         <span class="card-year">${year || (isTv ? 'Series' : 'Movie')}</span>
-        ${rating ? `<span class="card-rating-text">${Icons.star} ${rating}</span>` : ''}
+        ${primaryGenre ? `<span class="card-genre-text" title="${primaryGenre}">${primaryGenre}</span>` : `<span class="card-genre-text">${isTv ? 'TV Series' : 'Feature'}</span>`}
       </div>
     </div>
   `;
